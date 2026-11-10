@@ -596,6 +596,7 @@
     else if (state.route === "stock") refreshStock();
     else if (state.route === "search") refreshSearch();
     else if (state.route === "map") refreshMap();
+    else if (state.route === "reports") refreshReports();
     else render();
   }
   function refreshMap() {
@@ -607,6 +608,13 @@
     var nb = tmp.querySelectorAll(".toolbar .badge");
     var cb = document.querySelectorAll(".toolbar .badge");
     for (var i = 0; i < nb.length && i < cb.length; i++) cb[i].parentNode.replaceChild(nb[i], cb[i]);
+  }
+  function refreshReports() {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = viewReports();
+    var reports = tmp.querySelector("#reportsBody");
+    var current = document.getElementById("reportsBody");
+    if (reports && current) current.parentNode.replaceChild(reports, current);
   }
 
   /* ================= модальные окна ================= */
@@ -1328,7 +1336,7 @@
     return '<div class="toolbar no-print">' +
       '<label class="hint">Период</label><input type="date" data-rep="from" value="' + esc(state.period.from) + '">' +
       '<input type="date" data-rep="to" value="' + esc(state.period.to) + '">' +
-      '<div class="grow"></div><button class="btn ghost" data-action="print">' + icon("print") + "Печать</button></div>" +
+      '<div class="grow"></div><button class="btn ghost" data-action="print">' + icon("print") + 'Печать</button></div><div id="reportsBody">' +
       '<div class="grid kpis" style="margin-bottom:16px">' +
       kpiCard("green", "arrow", "Приход за период", fmtLen(t.in.m), t.in.c + " операций · " + fmtTon(t.in.kg)) +
       kpiCard("amber", "arrow", "Отгружено", fmtLen(t.ship.m), t.ship.c + " операций · " + fmtTon(t.ship.kg)) +
@@ -1353,7 +1361,7 @@
       '<div class="table-wrap"><table class="tbl"><thead><tr><th>Сотрудник</th><th class="num">Операций</th></tr></thead><tbody>' +
       (userRows || '<tr><td colspan="2" class="muted">Нет данных</td></tr>') + "</tbody></table></div></div></div>" +
       '<div class="card mt16"><div class="card-head"><h3>Заполненность зон</h3></div>' +
-      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Зона</th><th class="num">Занято</th><th class="num">Ёмкость</th><th>Заполнение</th></tr></thead><tbody>' + zoneRows + "</tbody></table></div></div>";
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Зона</th><th class="num">Занято</th><th class="num">Ёмкость</th><th>Заполнение</th></tr></thead><tbody>' + zoneRows + "</tbody></table></div></div></div>";
   }
 
   /* ================= поиск ================= */
@@ -1955,7 +1963,7 @@
       }
       if (t.matches("[data-stock]")) { state.stock[t.getAttribute("data-stock")] = t.value; refreshStock(); }
       if (t.matches("[data-map]")) { state.map[t.getAttribute("data-map")] = t.value; state.map.sel = null; refreshMap(); }
-      if (t.matches("[data-rep]")) { state.period[t.getAttribute("data-rep")] = t.value; render(); }
+      if (t.matches("[data-rep]")) { state.period[t.getAttribute("data-rep")] = t.value; refreshReports(); }
       if (t.id === "opFromZone" || t.id === "opToZone") {
         syncDraftFromDom();
         if (t.id === "opFromZone") { state.opDraft.fromZone = t.value; state.opDraft.fromCells = []; }
