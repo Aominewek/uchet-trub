@@ -152,7 +152,7 @@
       users: users,
       ops: ops,
       notifications: [],
-      audit: [{ id: "a0", ts: new Date().toISOString(), user: "Система", action: "Инициализация базы", details: "Демонстрационные данные v3" }]
+      audit: [{ id: "a0", ts: new Date().toISOString(), user: "Система", action: "Инициализация базы", details: "Демонстрационные данные v4" }]
     };
   }
 
@@ -399,7 +399,7 @@
     var map = balanceMap(filter);
     Object.keys(map).forEach(function (k) {
       var p = k.split("|");
-      var key = p[0] + "|" + p[1];
+      var key = p[1] + "|" + p[2];
       out[key] = (out[key] || 0) + map[k].meters;
     });
     return out;
@@ -497,7 +497,7 @@
     el("ucRole").textContent = ROLE_LABELS[session.role] || "";
     el("menuName").textContent = session.fio;
     el("menuMeta").textContent = (ROLE_LABELS[session.role] || "") + " · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "");
-    el("sbFootText").textContent = "Локальная база · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "") + " · v3";
+    el("sbFootText").textContent = "Локальная база · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "") + " · v4";
     paintBell();
     go("dashboard");
   }
