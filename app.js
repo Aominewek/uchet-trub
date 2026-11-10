@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var KEY = "utp_v3", SKEY = "utp_user_v3", VERSION = 3;
+  var KEY = "utp_v4", OLDKEY = "utp_v3", SKEY = "utp_user_v4", OLDSKEY = "utp_user_v3", VERSION = 4;
 
   /* ================= иконки ================= */
   var ICONS = {
@@ -40,15 +40,18 @@
       [324, [10.5, 13.5, 16.5]], [340, [11, 14, 17.5]], [351, [11.5, 14.5, 18]], [377, [12, 15, 18.5]], [426, [12.5, 15.5, 19]]];
     var BUR = [[60, [5, 7]], [73, [5.5, 7, 9]], [89, [6.5, 8, 11]], [102, [7, 9, 11]], [114, [7, 9, 11]], [127, [7, 9, 11]], [140, [8, 10, 12]]];
     var NKT = [[60, [5]], [73, [5.5, 7]], [89, [6.5, 8]], [102, [6.5, 7]], [114, [7, 8]]];
-    var out = [];
+    var out = [], n = 0;
     [["Обсадная", OBS, "ГОСТ 632-80"], ["Бурильная", BUR, "ГОСТ 631-75"], ["НКТ", NKT, "ГОСТ 633-80"]].forEach(function (g) {
       g[1].forEach(function (row) {
         row[1].forEach(function (w) {
           out.push({
             id: g[0] + "-" + row[0] + "-" + w,
             type: g[0], d: row[0], w: w,
+            kind: "Труба", unit: "m",
+            nomen: "Н-" + String(++n).padStart(4, "0"),
             label: g[0] + " Ø" + row[0] + "×" + w,
             kgm: Math.round(0.02466 * w * (row[0] - w) * 100) / 100,
+            kgUnit: 0,
             gost: g[2]
           });
         });
@@ -122,6 +125,7 @@
     users.push({ id: "e99", fio: "Руководитель", tab: "9999", pos: "Начальник участка", role: "admin", orgUnitId: "u_cbt", perms: null, active: true });
     users[0].role = "admin";
 
+    var cat = buildCatalog();
     var ops = [
       { id: "o1", date: "2026-10-28", type: "in", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 1440, qty: 120, status: "raw", from: [], to: [{ zoneId: "z_s1", cell: "Я01" }, { zoneId: "z_s1", cell: "Я02" }], plant: "ТМК", note: "Поступление с завода", user: "Иванов И.П.", created: "2026-10-28T09:15:00" },
       { id: "o2", date: "2026-11-01", type: "in", orgUnitId: "u_cbt", sizeId: "НКТ-89-6.5", meters: 600, qty: 50, status: "raw", from: [], to: [{ zoneId: "z_s2", cell: "Я03" }], plant: "СинТЗ", note: "Поступление с завода", user: "Петров А.С.", created: "2026-11-01T10:40:00" },
@@ -133,13 +137,18 @@
       { id: "o8", date: "2026-11-09", type: "in", orgUnitId: "u_cnkt", sizeId: "НКТ-73-5.5", meters: 480, qty: 40, status: "raw", from: [], to: [{ zoneId: "z_pvc", cell: "ПВХ-1" }, { zoneId: "z_pvc", cell: "ПВХ-2" }], plant: "ПНТЗ", note: "Временное хранение ПВХ", user: "Кузнецов Е.В.", created: "2026-11-09T12:00:00" }
     ];
 
+    ops.forEach(function (o) {
+      var s = cat.filter(function (x) { return x.id === o.sizeId; })[0];
+      o.nomen = s ? s.nomen : "";
+    });
+
     return {
       meta: { org: "ПАО «Сургутнефтегаз»", version: VERSION, created: todayISO() },
       settings: { cellCapacity: 120, demo: true },
       orgUnits: units,
       territories: territories,
       zones: zones,
-      catalog: buildCatalog(),
+      catalog: cat,
       users: users,
       ops: ops,
       notifications: [],
@@ -148,16 +157,46 @@
   }
 
   /* ================= хранилище ================= */
+  function migrate(d) {
+    if (!d.settings) d.settings = {};
+    if (!d.settings.cellCapacity) d.settings.cellCapacity = 120;
+    (d.catalog || []).forEach(function (s, i) {
+      if (!s.kind) s.kind = "Труба";
+      if (!s.unit) s.unit = s.kind === "Труба" ? "m" : "pcs";
+      if (!s.nomen) s.nomen = "Н-" + String(i + 1).padStart(4, "0");
+      if (s.kgUnit == null) s.kgUnit = 0;
+      if (!s.label) s.label = s.type + " Ø" + s.d + "×" + s.w;
+    });
+    (d.ops || []).forEach(function (o) {
+      if (!o.nomen) {
+        var s = (d.catalog || []).filter(function (x) { return x.id === o.sizeId; })[0];
+        o.nomen = s ? s.nomen : "";
+      }
+    });
+    if (d.meta) d.meta.version = VERSION;
+    return d;
+  }
   function load() {
     try {
       var raw = localStorage.getItem(KEY);
       if (raw) {
         var d = JSON.parse(raw);
-        if (d && d.meta && d.meta.version === VERSION && d.ops && d.users && d.catalog) return d;
+        if (d && d.catalog && d.ops && d.users) return migrate(d);
       }
     } catch (e) {}
+    try {
+      var oldRaw = localStorage.getItem(OLDKEY);
+      if (oldRaw) {
+        var old = JSON.parse(oldRaw);
+        if (old && old.catalog && old.ops && old.users) {
+          migrate(old);
+          try { localStorage.setItem(KEY, JSON.stringify(old)); } catch (e3) {}
+          return old;
+        }
+      }
+    } catch (e2) {}
     var s = seed();
-    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e2) {}
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e4) {}
     return s;
   }
   var store = load();
@@ -165,7 +204,7 @@
 
   var session = null;
   try {
-    var st = sessionStorage.getItem(SKEY);
+    var st = sessionStorage.getItem(SKEY) || sessionStorage.getItem(OLDSKEY);
     if (st) session = store.users.filter(function (u) { return u.tab === st && u.active !== false; })[0] || null;
   } catch (e) {}
 
@@ -207,6 +246,15 @@
   function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
   function byId(arr, id) { return arr.filter(function (x) { return x.id === id; })[0] || null; }
   function sizeById(id) { return byId(store.catalog, id); }
+  function itemWeight(s, meters, qty) {
+    if (!s) return 0;
+    return s.unit === "pcs" ? (s.kgUnit || 0) * (qty || 0) : (s.kgm || 0) * (meters || 0);
+  }
+  function isPipe(s) { return !!s && s.unit !== "pcs"; }
+  function massLabel(s) {
+    if (!s) return "";
+    return s.unit === "pcs" ? ((s.kgUnit || 0) + " кг/шт") : ((s.kgm || 0) + " кг/м");
+  }
   function unitById(id) { return byId(store.orgUnits, id); }
   function terrById(id) { return byId(store.territories, id); }
   function zoneById(id) { return byId(store.zones, id); }
@@ -340,7 +388,7 @@
     var t = { meters: 0, qty: 0, kg: 0 };
     rows.forEach(function (r) {
       var s = sizeById(r.sizeId);
-      t.meters += r.meters; t.qty += r.qty; t.kg += r.meters * (s ? s.kgm : 0);
+      t.meters += r.meters; t.qty += r.qty; t.kg += itemWeight(s, r.meters, r.qty);
     });
     return t;
   }
@@ -432,7 +480,7 @@
   }
   function logout() {
     session = null;
-    try { sessionStorage.removeItem(SKEY); } catch (e) {}
+    try { sessionStorage.removeItem(SKEY); sessionStorage.removeItem(OLDSKEY); } catch (e) {}
     el("shell").classList.add("hidden");
     el("loginScreen").classList.remove("hidden");
     el("loginScreen").style.display = "grid";
@@ -542,6 +590,23 @@
     else if (r === "help") html = viewHelp();
     el("view").innerHTML = html;
     afterRender();
+  }
+  function refreshCurrent() {
+    if (state.route === "registry") refreshRegistry();
+    else if (state.route === "stock") refreshStock();
+    else if (state.route === "search") refreshSearch();
+    else if (state.route === "map") refreshMap();
+    else render();
+  }
+  function refreshMap() {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = viewMap();
+    var layout = tmp.querySelector(".map-layout");
+    var cur = document.querySelector(".map-layout");
+    if (layout && cur) cur.parentNode.replaceChild(layout, cur);
+    var nb = tmp.querySelectorAll(".toolbar .badge");
+    var cb = document.querySelectorAll(".toolbar .badge");
+    for (var i = 0; i < nb.length && i < cb.length; i++) cb[i].parentNode.replaceChild(nb[i], cb[i]);
   }
 
   /* ================= модальные окна ================= */
@@ -654,10 +719,10 @@
   }
   function regRow(o) {
     var s = sizeById(o.sizeId);
-    var kg = o.meters * (s ? s.kgm : 0);
+    var kg = itemWeight(s, o.meters, o.qty);
     return "<tr><td>" + fmtDate(o.date) + "</td><td>" + typeBadge(o.type) + "</td><td>" +
       esc((unitById(o.orgUnitId) || {}).code || "—") + "</td><td><span class=\"strong\">" + esc(s ? s.label : o.sizeId) +
-      '</span><div class="sub">' + esc(s ? s.gost : "") + "</div></td>" +
+      '</span><div class="sub">' + (s && s.nomen ? '<span class="nomen">' + esc(s.nomen) + "</span> " : "") + esc(s ? (s.gost || "") : "") + "</div></td>" +
       '<td class="num">' + fmtLen(o.meters) + '<div class="sub">' + fmt1(kg / 1000) + " т</div></td>" +
       '<td class="num">' + fmtInt(o.qty) + "</td>" +
       "<td>" + statusBadge(o.status) + "</td>" +
@@ -747,28 +812,100 @@
       return '<option value="' + z.id + '"' + (z.id === sel ? " selected" : "") + ">" + esc((t ? t.name + " · " : "") + z.name) + " · " + zoneTypeLabel(z.type) + "</option>";
     }).join("");
   }
+  function nomenHtml(item) {
+    if (!item) return '<span class="hint">Выберите позицию</span>';
+    if (!item.nomen) return '<span class="badge bad">не задан — заполните каталог</span>';
+    return '<span class="nomen">' + esc(item.nomen) + "</span>";
+  }
   function cellsPick(zoneId, selected, which) {
     if (!zoneId) return '<div class="hint">Сначала выберите зону</div>';
+    var zone = zoneById(zoneId);
+    if (!zone) return "";
+    var cap = capacityOf(zone);
+    var occ = occupancyMap();
+    var d = state.opDraft;
+    var item = sizeById(d.sizeId);
+    var bal = which === "from" && item ? balanceMap(function (o) { return o.id !== d.id; }) : null;
+    var srcStatus = d.type === "from_shop" ? "prepared" : d.status;
     return '<div class="cells-pick">' + cellsOf(zoneId).map(function (c) {
-      return '<button type="button" class="chip sm' + (selected.indexOf(c) > -1 ? " on" : "") + '" data-cellpick="' + which + '" data-cell="' + esc(c) + '">' + esc(c) + "</button>";
+      var used = Math.max(0, occupancyCell(occ, zoneId, c));
+      var p = pct(used, cap);
+      var cls = p >= 80 ? "high" : p >= 40 ? "mid" : used > 0 ? "low" : "";
+      var info;
+      if (which === "from" && bal && item) {
+        var b = bal[d.orgUnitId + "|" + zoneId + "|" + c + "|" + d.sizeId + "|" + srcStatus];
+        info = fmtLen(b && b.meters > 0 ? b.meters : 0) + " к выдаче";
+      } else {
+        info = fmtLen(used) + " / " + fmtLen(cap) + " · " + p + "%";
+      }
+      return '<button type="button" class="cell-chip ' + cls + (selected.indexOf(c) > -1 ? " on" : "") + '" data-cellpick="' + which + '" data-cell="' + esc(c) + '" title="' + esc(zone.name + " · " + c + " · занято " + fmtLen(used) + " из " + fmtLen(cap)) + '">' +
+        "<b>" + esc(c) + "</b><span>" + esc(info) + "</span></button>";
     }).join("") + "</div>";
+  }
+  function cellsHint(which) {
+    var d = state.opDraft;
+    if (!d) return "";
+    var zoneId = which === "from" ? d.fromZone : d.toZone;
+    var cells = which === "from" ? d.fromCells : d.toCells;
+    if (!zoneId || !cells.length) return "";
+    var zone = zoneById(zoneId);
+    if (!zone) return "";
+    if (which === "to") {
+      var occ = occupancyMap(), used = 0;
+      cells.forEach(function (c) { used += Math.max(0, occupancyCell(occ, zoneId, c)); });
+      var cap = capacityOf(zone) * cells.length;
+      var free = Math.max(0, cap - used);
+      var after = used + (Number(d.meters) || 0);
+      var over = after > cap;
+      return '<span class="hint' + (over ? " warn" : "") + '">Занято ' + fmtLen(used) + " из " + fmtLen(cap) + " · свободно " + fmtLen(free) + (over ? " · не хватит места" : "") + "</span>";
+    }
+    var item = sizeById(d.sizeId);
+    if (!item) return "";
+    var srcStatus = d.type === "from_shop" ? "prepared" : d.status;
+    var bal = balanceMap(function (o) { return o.id !== d.id; });
+    var avail = 0;
+    cells.forEach(function (c) {
+      var b = bal[d.orgUnitId + "|" + zoneId + "|" + c + "|" + d.sizeId + "|" + srcStatus];
+      if (b && b.meters > 0) avail += b.meters;
+    });
+    var need = Number(d.meters) || 0;
+    return '<span class="hint' + (need > avail ? " warn" : "") + '">Доступно к выдаче: ' + fmtLen(avail) + (need > avail ? " · недостаточно" : "") + "</span>";
+  }
+  function refreshOpHints() {
+    var f = el("opFromHint");
+    if (f) f.innerHTML = cellsHint("from");
+    var t = el("opToHint");
+    if (t) t.innerHTML = cellsHint("to");
+  }
+  function refreshOpCells() {
+    var d = state.opDraft;
+    var f = el("opFromCells");
+    if (f) f.innerHTML = cellsPick(d.fromZone, d.fromCells, "from");
+    var t = el("opToCells");
+    if (t) t.innerHTML = cellsPick(d.toZone, d.toCells, "to");
+    refreshOpHints();
+    var n = el("opNomen");
+    if (n) n.innerHTML = nomenHtml(sizeById(d.sizeId));
   }
   function sizeOptions(sel) {
     var groups = {};
-    store.catalog.forEach(function (s) { (groups[s.type] = groups[s.type] || []).push(s); });
-    return '<option value="">— выберите трубу —</option>' + Object.keys(groups).map(function (t) {
+    store.catalog.forEach(function (s) {
+      var g = s.kind === "Труба" ? (s.type || "Труба") : (s.kind || "Прочее");
+      (groups[g] = groups[g] || []).push(s);
+    });
+    return '<option value="">— выберите позицию —</option>' + Object.keys(groups).map(function (t) {
       return '<optgroup label="' + esc(t) + '">' + groups[t].map(function (s) {
-        return '<option value="' + s.id + '"' + (s.id === sel ? " selected" : "") + ">" + esc(s.label) + " · " + s.kgm + " кг/м</option>";
+        return '<option value="' + s.id + '"' + (s.id === sel ? " selected" : "") + ">" + esc(s.label) + (s.nomen ? " · " + esc(s.nomen) : "") + " · " + massLabel(s) + "</option>";
       }).join("") + "</optgroup>";
     }).join("");
   }
   function opSummaryHtml(d) {
     var s = sizeById(d.sizeId);
-    var kg = (s ? s.kgm : 0) * (d.meters || 0);
-    var avg = d.qty > 0 ? d.meters / d.qty : 0;
+    var kg = itemWeight(s, d.meters, d.qty);
+    var avg = isPipe(s) && d.qty > 0 ? d.meters / d.qty : 0;
     return '<div class="op-sum"><div><span>Вес партии</span><b>' + fmtTon(kg) + "</b></div>" +
-      '<div><span>Средняя длина</span><b>' + (avg ? fmt1(avg) + " м" : "—") + "</b></div>" +
-      '<div><span>Труб</span><b>' + fmtInt(d.qty) + "</b></div></div>";
+      '<div><span>' + (isPipe(s) ? "Средняя длина" : "Масса за шт.") + '</span><b>' + (isPipe(s) ? (avg ? fmt1(avg) + " м" : "—") : (s ? fmt1(s.kgUnit || 0) + " кг" : "—")) + "</b></div>" +
+      '<div><span>' + (isPipe(s) ? "Труб" : "Штук") + '</span><b>' + fmtInt(d.qty) + "</b></div></div>";
   }
   function statusBlock(d) {
     if (d.type === "move" || d.type === "writeoff") {
@@ -791,24 +928,26 @@
     var fromBlock = d.type === "in" ? "" :
       '<div class="op-section"><div class="op-section-title">Откуда</div><div class="row">' +
       '<label class="field"><span>Зона</span><select id="opFromZone">' + zoneOptions(d.fromZone, d.type, "from") + "</select></label>" +
-      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opFromCells">' + cellsPick(d.fromZone, d.fromCells, "from") + "</div></div>" +
+      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opFromCells">' + cellsPick(d.fromZone, d.fromCells, "from") + '</div><div id="opFromHint">' + cellsHint("from") + "</div></div>" +
       "</div></div>";
 
     var toBlock = (d.type === "ship" || d.type === "writeoff") ? "" :
       '<div class="op-section"><div class="op-section-title">Куда</div><div class="row">' +
       '<label class="field"><span>Зона</span><select id="opToZone">' + zoneOptions(d.toZone, d.type, "to") + "</select></label>" +
-      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opToCells">' + cellsPick(d.toZone, d.toCells, "to") + "</div></div>" +
+      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opToCells">' + cellsPick(d.toZone, d.toCells, "to") + '</div><div id="opToHint">' + cellsHint("to") + "</div></div>" +
       "</div></div>";
 
     openModal(
-      '<div class="modal-head"><div><h3>' + title + '</h3><p>Метраж, вес и адреса хранения</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-head"><div><h3>' + title + '</h3><p>Позиция, метраж, вес и адреса хранения</p></div><button class="x" data-action="close-modal">×</button></div>' +
       '<div class="modal-body">' +
       '<div class="field"><span>Тип операции</span>' + seg + "</div>" +
       '<div class="row"><label class="field"><span>Дата</span><input type="date" id="opDate" value="' + esc(d.date) + '"></label>' +
       '<label class="field"><span>Оргединица</span><select id="opUnit">' + unitOptions(d.orgUnitId, "— выберите —") + "</select></label></div>" +
-      '<label class="field"><span>Труба</span><select id="opSize">' + sizeOptions(d.sizeId) + "</select></label>" +
-      '<div class="row3"><label class="field"><span>Метров</span><input type="number" id="opMeters" min="0" step="1" value="' + (d.meters || "") + '"></label>' +
-      '<label class="field"><span>Штук</span><input type="number" id="opQty" min="0" step="1" value="' + (d.qty || "") + '"></label>' +
+      '<label class="field"><span>Позиция</span><select id="opSize">' + sizeOptions(d.sizeId) + "</select></label>" +
+      '<div class="row"><div class="field"><span>Номенклатурный номер</span><div id="opNomen">' + nomenHtml(sizeById(d.sizeId)) + '</div></div>' +
+      '<div class="field"><span>Единица учёта</span><div class="hint" id="opUnitInfo">' + (sizeById(d.sizeId) ? (isPipe(sizeById(d.sizeId)) ? "метры" : "штуки") : "—") + "</div></div></div>" +
+      '<div class="row3"><label class="field"><span id="opMetersLabel">' + (isPipe(sizeById(d.sizeId)) ? "Метров" : "Метров (необязательно)") + '</span><input type="number" id="opMeters" min="0" step="1" value="' + (d.meters || "") + '"></label>' +
+      '<label class="field"><span id="opQtyLabel">' + (isPipe(sizeById(d.sizeId)) ? "Штук" : "Штук (обязательно)") + '</span><input type="number" id="opQty" min="0" step="1" value="' + (d.qty || "") + '"></label>' +
       '<div class="field"><span>Расчёт</span><div id="opSummary">' + opSummaryHtml(d) + "</div></div></div>" +
       statusBlock(d) + fromBlock + toBlock +
       '<div class="row"><label class="field"><span>Завод</span><input type="text" id="opPlant" value="' + esc(d.plant) + '" placeholder="ТМК, ВТЗ, СинТЗ…"></label>' +
@@ -845,29 +984,36 @@
     var d = state.opDraft;
     if (!d.orgUnitId) return toast("Выберите оргединицу", "err");
     if (!d.date) return toast("Укажите дату", "err");
-    if (!d.sizeId) return toast("Выберите трубу", "err");
-    if (!(d.meters > 0)) return toast("Укажите метраж больше нуля", "err");
-    if (!(d.qty > 0)) return toast("Укажите количество труб", "err");
-    if (d.type !== "in" && !d.fromCells.length) return toast("Выберите ячейки, откуда уходит труба", "err");
-    if ((d.type === "move" || d.type === "to_shop" || d.type === "from_shop") && !d.toCells.length) return toast("Выберите ячейки, куда приходит труба", "err");
+    if (!d.sizeId) return toast("Выберите позицию", "err");
+    var item = sizeById(d.sizeId);
+    if (!item) return toast("Позиция не найдена", "err");
+    if (!item.nomen) return toast("У позиции не задан номенклатурный номер — заполните каталог", "err");
+    if (isPipe(item)) {
+      if (!(d.meters > 0)) return toast("Укажите метраж больше нуля", "err");
+    } else {
+      d.meters = 0;
+    }
+    if (!(d.qty > 0)) return toast("Укажите количество", "err");
+    if (d.type !== "in" && !d.fromCells.length) return toast("Выберите ячейки, откуда уходит позиция", "err");
+    if ((d.type === "move" || d.type === "to_shop" || d.type === "from_shop") && !d.toCells.length) return toast("Выберите ячейки, куда приходит позиция", "err");
     if (d.type === "in" && !d.toCells.length) return toast("Выберите ячейки для размещения", "err");
 
     var srcStatus = d.type === "from_shop" ? "prepared" : d.status;
     if (d.type !== "in") {
       var bal = balanceMap(function (o) { return o.id !== d.id; });
-      var have = 0;
+      var haveM = 0, haveQ = 0;
       d.fromCells.forEach(function (c) {
         var b = bal[d.orgUnitId + "|" + d.fromZone + "|" + c + "|" + d.sizeId + "|" + srcStatus];
-        if (b && b.meters > 0) have += b.meters;
+        if (b) { if (b.meters > 0) haveM += b.meters; if (b.qty > 0) haveQ += b.qty; }
       });
-      if (have + 0.01 < d.meters) {
-        return toast("Недостаточно трубы: в выбранных ячейках " + fmtLen(have), "err");
+      if (isPipe(item) ? (haveM + 0.01 < d.meters) : (haveQ + 0.01 < d.qty)) {
+        return toast("Недостаточно: доступно " + (isPipe(item) ? fmtLen(haveM) : fmtInt(haveQ) + " шт."), "err");
       }
     }
 
     var op = {
       id: d.id || uid("op"),
-      date: d.date, type: d.type, orgUnitId: d.orgUnitId, sizeId: d.sizeId,
+      date: d.date, type: d.type, orgUnitId: d.orgUnitId, sizeId: d.sizeId, nomen: item.nomen,
       meters: Math.round(d.meters), qty: Math.round(d.qty), status: d.status,
       from: d.type === "in" ? [] : d.fromCells.map(function (c) { return { zoneId: d.fromZone, cell: c }; }),
       to: (d.type === "ship" || d.type === "writeoff") ? [] : d.toCells.map(function (c) { return { zoneId: d.toZone, cell: c }; }),
@@ -887,7 +1033,7 @@
     persist();
     closeModal();
     toast(d.id ? "Операция сохранена" : "Операция добавлена", "ok");
-    render();
+    refreshCurrent();
   }
   function askDeleteOp(id) {
     var op = store.ops.filter(function (o) { return o.id === id; })[0];
@@ -906,60 +1052,139 @@
     persist();
     closeModal();
     toast("Операция удалена", "ok");
-    render();
+    refreshCurrent();
   }
 
   /* ================= остатки ================= */
-  function viewStock() {
-    var rows = stockList();
-    var f = state.stock, q = f.q.trim().toLowerCase();
-    rows = rows.filter(function (r) {
+  function stockFiltered() {
+    var rows = stockList(), f = state.stock, q = f.q.trim().toLowerCase();
+    return rows.filter(function (r) {
       if (f.unit && r.orgUnitId !== f.unit) return false;
       if (f.status && r.status !== f.status) return false;
       if (q) {
-        var z = zoneById(r.zoneId);
-        var hay = [sizeLabel(r.sizeId), (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : ""].join(" ").toLowerCase();
+        var z = zoneById(r.zoneId), s = sizeById(r.sizeId);
+        var hay = [sizeLabel(r.sizeId), s ? (s.nomen || "") : "", (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : ""].join(" ").toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
     });
+  }
+  function stockGroups(rows) {
     var groups = {};
     rows.forEach(function (r) {
       var k = r.orgUnitId + "|" + r.sizeId + "|" + r.status;
       if (!groups[k]) groups[k] = { orgUnitId: r.orgUnitId, sizeId: r.sizeId, status: r.status, meters: 0, qty: 0, cells: [] };
       groups[k].meters += r.meters; groups[k].qty += r.qty;
-      var z = zoneById(r.zoneId);
-      groups[k].cells.push({ zone: z, cell: r.cell, meters: r.meters });
+      groups[k].cells.push({ zone: zoneById(r.zoneId), cell: r.cell, meters: r.meters });
     });
-    var list = Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) {
+    return Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) {
       var ua = (unitById(a.orgUnitId) || {}).code || "", ub = (unitById(b.orgUnitId) || {}).code || "";
       return ua === ub ? (sizeLabel(a.sizeId) < sizeLabel(b.sizeId) ? -1 : 1) : (ua < ub ? -1 : 1);
     });
+  }
+  function stockKpisHtml(rows, list) {
     var t = totals(rows);
+    return '<div class="grid kpis" style="margin-bottom:16px">' +
+      kpiCard("", "pipe", "Метраж на складе", fmtLen(t.meters), fmtInt(t.qty) + " шт") +
+      kpiCard("cyan", "box", "Вес", fmtTon(t.kg), "расчёт по каталогу") +
+      kpiCard("violet", "chart", "Средняя длина", t.qty ? fmt1(avgLength(t)) + " м" : "—", "по всем позициям") +
+      kpiCard("green", "check", "Позиций", fmtInt(list.length), "строк в остатках") +
+      "</div>";
+  }
+  function stockBodyHtml(list) {
     var body = list.map(function (g) {
       var s = sizeById(g.sizeId);
       var cells = g.cells.sort(function (a, b) { return b.meters - a.meters; }).map(function (c) {
         return '<span class="cell-addr">' + esc(c.zone ? c.zone.name.replace("Автокрановая площадка временного хранения ", "") : "?") + " · " + esc(c.cell) + " · " + fmtLen(c.meters) + "</span>";
       }).join("");
       return "<tr><td>" + esc((unitById(g.orgUnitId) || {}).code || "—") + "</td><td><span class=\"strong\">" + esc(s ? s.label : g.sizeId) +
-        '</span><div class="sub">' + (s ? s.kgm + " кг/м" : "") + "</div></td><td>" + statusBadge(g.status) +
-        '</td><td class="num">' + fmtLen(g.meters) + '</td><td class="num">' + fmt1(g.meters * (s ? s.kgm : 0) / 1000) + " т</td>" +
+        '</span><div class="sub">' + (s ? '<span class="nomen">' + esc(s.nomen || "—") + "</span> · " + massLabel(s) : "") + "</div></td><td>" + statusBadge(g.status) +
+        '</td><td class="num">' + fmtLen(g.meters) + '</td><td class="num">' + fmt1(itemWeight(s, g.meters, g.qty) / 1000) + " т</td>" +
         '<td class="num">' + fmtInt(g.qty) + '</td><td class="num">' + (g.qty ? fmt1(g.meters / g.qty) + " м" : "—") + "</td>" +
         "<td>" + cells + "</td></tr>";
     }).join("");
-    return '<div class="grid kpis" style="margin-bottom:16px">' +
-      kpiCard("", "pipe", "Метраж на складе", fmtLen(t.meters), fmtInt(t.qty) + " труб") +
-      kpiCard("cyan", "box", "Вес", fmtTon(t.kg), "расчёт по ГОСТ") +
-      kpiCard("violet", "chart", "Средняя длина", t.qty ? fmt1(avgLength(t)) + " м" : "—", "по всем позициям") +
-      kpiCard("green", "check", "Позиций", fmtInt(list.length), "строк в остатках") +
-      "</div>" +
-      '<div class="toolbar no-print"><div class="search-inline">' + icon("search") + '<input data-stock="q" value="' + esc(f.q) + '" placeholder="Труба, ячейка, зона"></div>' +
+    return body || '<tr><td colspan="8"><div class="empty">' + icon("box") + '<b>Остатков нет</b>Добавьте приход</div></td></tr>';
+  }
+  function viewStock() {
+    var rows = stockFiltered();
+    var list = stockGroups(rows);
+    var f = state.stock;
+    return '<div id="stockKpis">' + stockKpisHtml(rows, list) + "</div>" +
+      '<div class="toolbar no-print"><div class="search-inline">' + icon("search") + '<input data-stock="q" value="' + esc(f.q) + '" placeholder="Позиция, номенклатурник, ячейка"></div>' +
       '<select data-stock="unit" style="max-width:230px">' + unitOptions(f.unit) + "</select>" +
       '<select data-stock="status" style="max-width:200px">' + statusOptions(f.status) + "</select>" +
       '<div class="grow"></div><button class="btn ghost" data-action="export">' + icon("download") + "Экспорт JSON</button></div>" +
-      '<div class="card"><div class="card-head"><div><h3>Остатки по адресам</h3><div class="sub">каждая строка — труба, статус и ячейки</div></div></div>' +
-      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Орг. ед.</th><th>Труба</th><th>Статус</th><th class="num">Метров</th><th class="num">Тонн</th><th class="num">Штук</th><th class="num">Ср. длина</th><th>Где лежит</th></tr></thead><tbody>' +
-      (body || '<tr><td colspan="8"><div class="empty">' + icon("box") + '<b>Остатков нет</b>Добавьте приход</div></td></tr>') + "</tbody></table></div></div>";
+      '<div class="card"><div class="card-head"><div><h3>Остатки по адресам</h3><div class="sub">каждая строка — позиция, статус и ячейки</div></div></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Орг. ед.</th><th>Позиция</th><th>Статус</th><th class="num">Метров</th><th class="num">Тонн</th><th class="num">Штук</th><th class="num">Ср. длина</th><th>Где лежит</th></tr></thead><tbody id="stockBody">' +
+      stockBodyHtml(list) + "</tbody></table></div></div>";
+  }
+  function refreshStock() {
+    var rows = stockFiltered();
+    var list = stockGroups(rows);
+    var k = el("stockKpis"); if (k) k.innerHTML = stockKpisHtml(rows, list);
+    var b = el("stockBody"); if (b) b.innerHTML = stockBodyHtml(list);
+  }
+
+  /* ================= карта: данные ячейки ================= */
+  function mapFilter() {
+    var diam = state.map.d;
+    return function (op) {
+      if (state.map.unitId && op.orgUnitId !== state.map.unitId) return false;
+      if (diam) {
+        var s = sizeById(op.sizeId);
+        if (!s || String(s.d) !== String(diam)) return false;
+      }
+      return true;
+    };
+  }
+  function mapRows() {
+    var diam = state.map.d;
+    return stockList().filter(function (r) {
+      var s = sizeById(r.sizeId);
+      if (state.map.unitId && r.orgUnitId !== state.map.unitId) return false;
+      if (diam && (!s || String(s.d) !== String(diam))) return false;
+      return true;
+    });
+  }
+  function cellContents(zoneId, cell) {
+    return mapRows().filter(function (r) { return r.zoneId === zoneId && r.cell === cell; });
+  }
+  function mapDetailHtml(zoneId, cell) {
+    var z = zoneById(zoneId);
+    var rows = cellContents(zoneId, cell);
+    var used = rows.reduce(function (s, r) { return s + r.meters; }, 0);
+    var cap = z ? capacityOf(z) : 0;
+    var body = rows.length ? rows.map(function (r) {
+      var s = sizeById(r.sizeId);
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line2)">' +
+        "<span>" + esc(sizeLabel(r.sizeId)) + ' <span class="nomen">' + esc(s ? (s.nomen || "—") : "—") + "</span>" +
+        '<div class="hint">' + statusLabel(r.status) + " · " + fmtInt(r.qty) + " шт · " + fmtTon(itemWeight(s, r.meters, r.qty)) + "</div></span>" +
+        "<b>" + fmtLen(r.meters) + "</b></div>";
+    }).join("") : '<div class="muted">Пусто</div>';
+    return '<div class="cell-detail"><h4>' + esc((z ? z.name : "") + " · " + cell) + "</h4>" +
+      '<div class="hint">Занято ' + fmtLen(used) + " из " + fmtLen(cap) + " · " + pct(used, cap) + "%</div>" + body + "</div>";
+  }
+  function mapTipHtml(zoneId, cell) {
+    var z = zoneById(zoneId);
+    var rows = cellContents(zoneId, cell);
+    var used = rows.reduce(function (s, r) { return s + r.meters; }, 0);
+    var cap = z ? capacityOf(z) : 0;
+    var items = rows.slice(0, 5).map(function (r) {
+      var s = sizeById(r.sizeId);
+      return '<div class="t-row"><span>' + esc(sizeLabel(r.sizeId)) + " · " + statusLabel(r.status) + "</span><b>" + fmtLen(r.meters) + "</b></div>" +
+        '<div class="t-row t-muted"><span>' + esc(s ? (s.nomen || "—") : "—") + "</span><span>" + fmtInt(r.qty) + " шт</span></div>";
+    }).join("");
+    return "<b>" + esc((z ? z.name : "") + " · " + cell) + "</b>" +
+      '<div class="t-row t-muted"><span>Занято ' + fmtLen(used) + " из " + fmtLen(cap) + "</span><b>" + pct(used, cap) + "%</b></div>" +
+      (items || '<div class="t-row t-muted">Пусто</div>');
+  }
+  function selectMapCell(zoneId, cell) {
+    state.map.sel = { zoneId: zoneId, cell: cell };
+    document.querySelectorAll(".map-cell.sel").forEach(function (x) { x.classList.remove("sel"); });
+    var btn = document.querySelector('.map-cell[data-zone="' + zoneId + '"][data-cell="' + cell + '"]');
+    if (btn) btn.classList.add("sel");
+    var d = el("mapDetail");
+    if (d) d.innerHTML = mapDetailHtml(zoneId, cell);
   }
 
   /* ================= схема склада ================= */
@@ -967,21 +1192,12 @@
     var territory = terrById(state.map.territoryId) || store.territories[0];
     var zones = store.zones.filter(function (z) { return z.territoryId === (territory ? territory.id : ""); });
     var diam = state.map.d;
-    var mf = function (op) {
-      if (state.map.unitId && op.orgUnitId !== state.map.unitId) return false;
-      if (diam) { var s = sizeById(op.sizeId); if (!s || String(s.d) !== String(diam)) return false; }
-      return true;
-    };
+    var mf = mapFilter();
     var occ = occupancyMap(mf);
-    var rows = stockList().filter(function (r) {
-      var s = sizeById(r.sizeId);
-      if (state.map.unitId && r.orgUnitId !== state.map.unitId) return false;
-      if (diam && (!s || String(s.d) !== String(diam))) return false;
-      return true;
-    });
+    var rows = mapRows();
     var t = totals(rows);
     var dSet = {};
-    store.catalog.forEach(function (s) { dSet[s.d] = 1; });
+    store.catalog.forEach(function (s) { if (isPipe(s) && s.d) dSet[s.d] = 1; });
     var diams = Object.keys(dSet).map(Number).sort(function (a, b) { return a - b; });
 
     var grid = zones.map(function (z) {
@@ -996,7 +1212,8 @@
         var cls = fillClass(p);
         if (z.type === "pvc" && !m) cls = "pvc";
         if (z.type === "shop" && !m) cls = "shop";
-        return '<button type="button" class="map-cell ' + cls + (p >= 80 ? " full" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" title="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '">' +
+        var isSel = state.map.sel && state.map.sel.zoneId === z.id && state.map.sel.cell === c;
+        return '<button type="button" class="map-cell ' + cls + (p >= 80 ? " full" : "") + (isSel ? " sel" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" aria-label="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '">' +
           '<span class="code">' + esc(c) + '</span><span class="m">' + (m ? fmtLen(m) : "0") + "</span>" +
           '<span class="fillbar"><i style="width:' + Math.min(100, p) + '%"></i></span>' +
           (p >= 80 ? '<span class="full-tag">заполнено</span>' : "") + "</button>";
@@ -1013,15 +1230,7 @@
     });
     topCells.sort(function (a, b) { return b.m - a.m; });
     var sel = state.map.sel;
-    var selHtml = "";
-    if (sel) {
-      var zz = zoneById(sel.zoneId);
-      var inCell = rows.filter(function (r) { return r.zoneId === sel.zoneId && r.cell === sel.cell; });
-      selHtml = '<div class="cell-detail"><h4>' + esc((zz ? zz.name : "") + " · " + sel.cell) + "</h4>" +
-        (inCell.length ? inCell.map(function (r) {
-          return "<div style=\"display:flex;justify-content:space-between;gap:8px;padding:3px 0\"><span>" + esc(sizeLabel(r.sizeId)) + " · " + statusLabel(r.status) + "</span><b>" + fmtLen(r.meters) + "</b></div>";
-        }).join("") : '<div class="muted">Пусто</div>') + "</div>";
-    }
+    var selHtml = '<div id="mapDetail">' + (sel ? mapDetailHtml(sel.zoneId, sel.cell) : '<div class="hint">Нажмите на ячейку, чтобы увидеть, что внутри</div>') + "</div>";
 
     return '<div class="toolbar no-print">' +
       '<select data-map="territory" style="max-width:200px">' + store.territories.map(function (x) {
@@ -1032,7 +1241,7 @@
         return '<option value="' + d + '"' + (String(d) === String(diam) ? " selected" : "") + ">Ø" + d + "</option>";
       }).join("") + "</select>" +
       '<div class="grow"></div><span class="badge info">' + fmtLen(t.meters) + " · " + fmtTon(t.kg) + "</span></div>" +
-      '<div class="map-layout"><div>' + (grid || '<div class="empty">Нет зон на территории</div>') +
+      '<div class="map-layout"><div id="mapZones">' + (grid || '<div class="empty">Нет зон на территории</div>') +
       '<div class="legend"><span><i style="background:#f8fafd;border-color:#dfe7f2"></i>пусто</span>' +
       '<span><i style="background:#dcfce7;border-color:#a7e3bd"></i>до 40%</span>' +
       '<span><i style="background:#fef3c7;border-color:#f5cf7c"></i>40–80%</span>' +
@@ -1068,7 +1277,7 @@
     ops.forEach(function (o) {
       var s = sizeById(o.sizeId), b = t[o.type];
       if (!b) return;
-      b.c++; b.m += o.meters; b.kg += o.meters * (s ? s.kgm : 0);
+      b.c++; b.m += o.meters; b.kg += itemWeight(s, o.meters, o.qty);
     });
     var rows = stockList();
     var all = totals(rows);
@@ -1079,7 +1288,7 @@
     rows.forEach(function (r) {
       if (!bySize[r.sizeId]) bySize[r.sizeId] = { m: 0, q: 0, kg: 0 };
       var s = sizeById(r.sizeId);
-      bySize[r.sizeId].m += r.meters; bySize[r.sizeId].q += r.qty; bySize[r.sizeId].kg += r.meters * (s ? s.kgm : 0);
+      bySize[r.sizeId].m += r.meters; bySize[r.sizeId].q += r.qty; bySize[r.sizeId].kg += itemWeight(s, r.meters, r.qty);
     });
     var sizeList = Object.keys(bySize).map(function (k) { return { id: k, m: bySize[k].m, q: bySize[k].q, kg: bySize[k].kg }; })
       .sort(function (a, b) { return b.m - a.m; }).slice(0, 15);
@@ -1148,19 +1357,20 @@
   }
 
   /* ================= поиск ================= */
-  function viewSearch() {
+  function searchResultsHtml() {
     var q = state.search.trim().toLowerCase();
     if (!q) {
       return '<div class="card"><div class="card-body"><div class="empty">' + icon("search") +
-        "<b>Введите запрос</b>Труба, диаметр, ячейка, оргединица, сотрудник или примечание</div></div></div>";
+        "<b>Введите запрос</b>Позиция, номенклатурник, ячейка, оргединица, сотрудник или примечание</div></div></div>";
     }
     var ops = store.ops.filter(function (o) {
-      return [o.date, fmtDate(o.date), typeLabel(o.type), sizeLabel(o.sizeId), o.plant, o.user, o.note,
+      var s = sizeById(o.sizeId);
+      return [o.date, fmtDate(o.date), typeLabel(o.type), sizeLabel(o.sizeId), s ? (s.nomen || "") : "", o.plant, o.user, o.note,
         (unitById(o.orgUnitId) || {}).code, addrText(o.from), addrText(o.to)].join(" ").toLowerCase().indexOf(q) > -1;
     }).slice(0, 20);
     var stock = stockList().filter(function (r) {
-      var z = zoneById(r.zoneId);
-      return [sizeLabel(r.sizeId), (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : "", statusLabel(r.status)].join(" ").toLowerCase().indexOf(q) > -1;
+      var z = zoneById(r.zoneId), s = sizeById(r.sizeId);
+      return [sizeLabel(r.sizeId), s ? (s.nomen || "") : "", (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : "", statusLabel(r.status)].join(" ").toLowerCase().indexOf(q) > -1;
     }).slice(0, 20);
     var users = store.users.filter(function (u) {
       return [u.fio, u.tab, u.pos, ROLE_LABELS[u.role], (unitById(u.orgUnitId) || {}).code].join(" ").toLowerCase().indexOf(q) > -1;
@@ -1170,17 +1380,26 @@
       return '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>' + title + '</h3></div><div class="card-body">' + (inner || '<div class="muted">' + empty + "</div>") + "</div></div>";
     }
     var opsHtml = ops.map(function (o) {
-      return '<div class="stat"><span>' + fmtDate(o.date) + " · " + esc(o.user) + " · " + esc(sizeLabel(o.sizeId)) + '</span><b>' + fmtLen(o.meters) + "</b></div>";
+      var s = sizeById(o.sizeId);
+      return '<div class="stat"><span>' + fmtDate(o.date) + " · " + esc(o.user) + " · " + esc(sizeLabel(o.sizeId)) + (s && s.nomen ? ' <span class="nomen">' + esc(s.nomen) + "</span>" : "") + '</span><b>' + fmtLen(o.meters) + "</b></div>";
     }).join("");
     var stockHtml = stock.map(function (r) {
-      return '<div class="stat"><span>' + esc(sizeLabel(r.sizeId)) + " · " + esc(r.cell) + " · " + statusLabel(r.status) + '</span><b>' + fmtLen(r.meters) + "</b></div>";
+      var s = sizeById(r.sizeId);
+      return '<div class="stat"><span>' + esc(sizeLabel(r.sizeId)) + (s && s.nomen ? ' <span class="nomen">' + esc(s.nomen) + "</span>" : "") + " · " + esc(r.cell) + " · " + statusLabel(r.status) + '</span><b>' + fmtLen(r.meters) + "</b></div>";
     }).join("");
     var usersHtml = users.map(function (u) {
       return '<div class="stat"><span>' + esc(u.fio) + " · таб. " + esc(u.tab) + '</span><b>' + esc(ROLE_LABELS[u.role]) + "</b></div>";
     }).join("");
+    return block("Операции", opsHtml, "Совпадений нет") + block("Остатки", stockHtml, "Совпадений нет") + block("Сотрудники", usersHtml, "Совпадений нет");
+  }
+  function viewSearch() {
     return '<div class="toolbar"><div class="search-inline" style="flex:1">' + icon("search") +
-      '<input id="searchMain" value="' + esc(state.search) + '" placeholder="Что ищем?"></div></div>' +
-      block("Операции", opsHtml, "Совпадений нет") + block("Остатки", stockHtml, "Совпадений нет") + block("Сотрудники", usersHtml, "Совпадений нет");
+      '<input id="searchMain" value="' + esc(state.search) + '" placeholder="Позиция, номенклатурник, ячейка, сотрудник"></div></div>' +
+      '<div id="searchResults">' + searchResultsHtml() + "</div>";
+  }
+  function refreshSearch() {
+    var r = el("searchResults");
+    if (r) r.innerHTML = searchResultsHtml();
   }
 
   /* ================= проверки ================= */
@@ -1479,51 +1698,83 @@
   /* ================= админ: каталог ================= */
   function viewAdminCatalog() {
     var rows = store.catalog.map(function (s) {
-      return "<tr><td><b>" + esc(s.label) + '</b><div class="sub">' + esc(s.type) + '</div></td><td>' + esc(s.gost) + '</td>' +
-        '<td class="num">' + s.d + '</td><td class="num">' + s.w + '</td><td class="num">' + s.kgm + '</td>' +
+      var pipe = isPipe(s);
+      return "<tr><td><b>" + esc(s.label) + '</b><div class="sub"><span class="nomen">' + esc(s.nomen || "—") + "</span> · " + esc(s.kind || "Труба") + "</div></td>" +
+        "<td>" + esc(s.gost || "—") + "</td>" +
+        '<td class="num">' + (pipe ? s.d : "—") + '</td><td class="num">' + (pipe ? s.w : "—") + '</td>' +
+        '<td class="num">' + (pipe ? s.kgm : (s.kgUnit || 0)) + " " + (pipe ? "кг/м" : "кг/шт") + "</td>" +
         '<td><div class="actions"><button class="btn ghost sm" data-action="edit-size" data-id="' + esc(s.id) + '">' + icon("edit") + "</button>" +
         '<button class="btn danger sm" data-action="del-size" data-id="' + esc(s.id) + '">' + icon("trash") + "</button></div></td></tr>";
     }).join("");
-    return '<div class="toolbar no-print"><span class="badge info">' + store.catalog.length + " типоразмеров</span><div class=\"grow\"></div>" +
-      '<button class="btn primary" data-action="add-size">' + icon("plus") + "Добавить типоразмер</button></div>" +
-      '<div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Труба</th><th>ГОСТ</th><th class="num">Ø, мм</th><th class="num">Стенка, мм</th><th class="num">кг/м</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+    return '<div class="toolbar no-print"><span class="badge info">' + store.catalog.length + " позиций</span><div class=\"grow\"></div>" +
+      '<button class="btn primary" data-action="add-size">' + icon("plus") + "Добавить позицию</button></div>" +
+      '<div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Позиция</th><th>ГОСТ / стандарт</th><th class="num">Ø, мм</th><th class="num">Стенка, мм</th><th class="num">Масса</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
   }
   function sizeModal(id) {
-    var s = id ? sizeById(id) : { type: "Обсадная", d: 168, w: 8, gost: "ГОСТ 632-80" };
-    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить типоразмер" : "Новый типоразмер") + '</h3><p>Масса считается автоматически</p></div><button class="x" data-action="close-modal">×</button></div>' +
-      '<div class="modal-body"><div class="row3"><label class="field"><span>Тип</span><select id="sType"><option' + (s.type === "Обсадная" ? " selected" : "") + '>Обсадная</option><option' + (s.type === "Бурильная" ? " selected" : "") + '>Бурильная</option><option' + (s.type === "НКТ" ? " selected" : "") + '>НКТ</option><option' + (s.type !== "Обсадная" && s.type !== "Бурильная" && s.type !== "НКТ" ? " selected" : "") + '>Иное</option></select></label>' +
-      '<label class="field"><span>Диаметр, мм</span><input type="number" id="sD" value="' + s.d + '"></label>' +
-      '<label class="field"><span>Стенка, мм</span><input type="number" id="sW" step="0.1" value="' + s.w + '"></label></div>' +
-      '<label class="field"><span>ГОСТ</span><input id="sGost" value="' + esc(s.gost) + '"></label>' +
+    var s = id ? sizeById(id) : { kind: "Труба", type: "Обсадная", d: 168, w: 8, gost: "ГОСТ 632-80", unit: "m", kgUnit: 0, nomen: "" };
+    var kinds = ["Труба", "ПВХ", "Металлопрокат", "Запчасти", "Прочее"];
+    var pipe = s.unit !== "pcs";
+    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить позицию" : "Новая позиция") + '</h3><p>Трубы и другие изделия</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="row"><label class="field"><span>Номенклатурный номер *</span><input id="sNomen" value="' + esc(s.nomen || "") + '" placeholder="Н-0001"></label>' +
+      '<label class="field"><span>Тип изделия</span><select id="sKind">' + kinds.map(function (k) {
+        return '<option' + (k === (s.kind || "Труба") ? " selected" : "") + ">" + k + "</option>";
+      }).join("") + "</select></label></div>" +
+      '<div class="row"><label class="field"><span>Наименование</span><input id="sLabel" value="' + esc(s.label || "") + '" placeholder="Обсадная Ø168×8"></label>' +
+      '<label class="field"><span>Единица учёта</span><select id="sUnit"><option value="m"' + (pipe ? " selected" : "") + '>метр</option><option value="pcs"' + (!pipe ? " selected" : "") + ">штука</option></select></label></div>" +
+      '<div id="sPipeFields" class="' + (pipe ? "" : "hidden") + '"><div class="row3"><label class="field"><span>Вид трубы</span><select id="sType">' +
+      ["Обсадная", "Бурильная", "НКТ", "Иное"].map(function (t) { return "<option" + (t === (s.type || "Обсадная") ? " selected" : "") + ">" + t + "</option>"; }).join("") +
+      '</select></label><label class="field"><span>Диаметр, мм</span><input type="number" id="sD" value="' + (s.d || 168) + '"></label>' +
+      '<label class="field"><span>Стенка, мм</span><input type="number" id="sW" step="0.1" value="' + (s.w || 8) + '"></label></div>' +
+      '<label class="field"><span>ГОСТ</span><input id="sGost" value="' + esc(s.gost || "") + '"></label></div>' +
+      '<div id="sPcsFields" class="' + (pipe ? "hidden" : "") + '"><label class="field"><span>Масса за штуку, кг</span><input type="number" id="sKgUnit" step="0.01" value="' + (s.kgUnit || 0) + '"></label></div>' +
       '<div class="note-line" id="sPreview"></div></div>' +
-      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-size" data-id="' + esc(id || "") + '">Сохранить</button></div>', "sm");
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-size" data-id="' + esc(id || "") + '">Сохранить</button></div>');
     updateSizePreview();
   }
   function updateSizePreview() {
-    var d = Number(el("sD") && el("sD").value), w = Number(el("sW") && el("sW").value);
     var p = el("sPreview");
     if (!p) return;
-    var kgm = d > w ? Math.round(0.02466 * w * (d - w) * 100) / 100 : 0;
+    var unit = el("sUnit") ? el("sUnit").value : "m";
+    if (unit === "pcs") {
+      var kgU = Number(el("sKgUnit") && el("sKgUnit").value) || 0;
+      p.innerHTML = "Учёт в штуках. Масса: <b>" + fmt1(kgU) + " кг/шт</b>";
+      return;
+    }
+    var d = Number(el("sD") && el("sD").value), w = Number(el("sW") && el("sW").value);
+    var kgm = d > w && w > 0 ? Math.round(0.02466 * w * (d - w) * 100) / 100 : 0;
     p.innerHTML = "Масса: <b>" + kgm + " кг/м</b> · вес 1 км: <b>" + fmt1(kgm) + " т</b>";
   }
   function saveSize() {
-    var type = el("sType").value, d = Number(el("sD").value), w = Number(el("sW").value);
-    if (!(d > 0) || !(w > 0) || w >= d) return toast("Проверьте диаметр и стенку", "err");
+    var nomen = el("sNomen").value.trim();
+    if (!nomen) return toast("Номенклатурный номер обязателен", "err");
+    var unit = el("sUnit").value;
+    var kind = el("sKind").value;
+    var label = el("sLabel").value.trim();
     var id = document.querySelector('[data-action="save-size"]').getAttribute("data-id");
+    var type = el("sType") ? el("sType").value : kind;
+    var d = unit === "m" ? Number(el("sD").value) : 0;
+    var w = unit === "m" ? Number(el("sW").value) : 0;
+    if (unit === "m" && (!(d > 0) || !(w > 0) || w >= d)) return toast("Проверьте диаметр и стенку", "err");
+    if (!label) label = unit === "m" ? (type + " Ø" + d + "×" + w) : kind;
     var s = {
-      id: id || (type + "-" + d + "-" + w), type: type, d: d, w: w,
-      label: type + " Ø" + d + "×" + w,
-      kgm: Math.round(0.02466 * w * (d - w) * 100) / 100,
-      gost: el("sGost").value.trim()
+      id: id || (unit === "m" ? (type + "-" + d + "-" + w) : ("I-" + Date.now().toString(36))),
+      kind: kind, type: type, unit: unit,
+      nomen: nomen,
+      label: label,
+      d: d, w: w,
+      kgm: unit === "m" ? Math.round(0.02466 * w * (d - w) * 100) / 100 : 0,
+      kgUnit: unit === "pcs" ? (Number(el("sKgUnit").value) || 0) : 0,
+      gost: el("sGost") ? el("sGost").value.trim() : ""
     };
     if (id) {
       var i = store.catalog.findIndex(function (x) { return x.id === id; });
       store.catalog[i] = s;
     } else {
-      if (sizeById(s.id)) return toast("Такой типоразмер уже есть", "err");
+      if (sizeById(s.id)) return toast("Такая позиция уже есть", "err");
       store.catalog.push(s);
     }
-    persist(); logAction(id ? "Изменён типоразмер" : "Добавлен типоразмер", s.label); closeModal(); toast("Сохранено", "ok"); render();
+    persist(); logAction(id ? "Изменена позиция каталога" : "Добавлена позиция каталога", s.label + " · " + nomen); closeModal(); toast("Сохранено", "ok"); render();
   }
   function delSize(id) {
     var used = store.ops.some(function (o) { return o.sizeId === id; });
@@ -1574,7 +1825,7 @@
   function viewNotifications() {
     var list = store.notifications;
     return '<div class="toolbar no-print"><div class="grow"></div><button class="btn ghost" data-action="mark-all-read">Прочитать все</button></div>' +
-      '<div class="card"><div class="card-head"><div><h3>Уведомления</h3><div class="sub">' + unreadCount() + " непрочитанных</div></div></div>" +
+      '<div class="card"><div class="card-head"><div><h3>Уведомления</h3><div class="sub" id="notifCount">непрочитанных: ' + unreadCount() + "</div></div></div>" +
       '<div class="card-body" style="padding:0">' + (list.length ? list.map(notifItem).join("") : '<div class="empty">' + icon("bell") + "<b>Пока тихо</b>Здесь появятся события системы</div>") + "</div></div>";
   }
   function paintNotifPanel() {
@@ -1658,7 +1909,7 @@
       var navBtn = t.closest("[data-nav]");
       if (navBtn) { go(navBtn.getAttribute("data-nav")); return; }
       var mapCell = t.closest("[data-cellmap]");
-      if (mapCell) { state.map.sel = { zoneId: mapCell.getAttribute("data-zone"), cell: mapCell.getAttribute("data-cell") }; render(); return; }
+      if (mapCell) { selectMapCell(mapCell.getAttribute("data-zone"), mapCell.getAttribute("data-cell")); return; }
       var pageBtn = t.closest("[data-page]");
       if (pageBtn && !pageBtn.disabled) { state.page = Number(pageBtn.getAttribute("data-page")); refreshRegistry(); return; }
       var typeBtn = t.closest("[data-optype]");
@@ -1671,6 +1922,30 @@
       if (menuBtn) handleAction(menuBtn);
     });
 
+    document.addEventListener("mouseover", function (e) {
+      var c = e.target.closest("[data-cellmap]");
+      if (!c) return;
+      var tip = el("mapTip");
+      if (!tip) return;
+      tip.innerHTML = mapTipHtml(c.getAttribute("data-zone"), c.getAttribute("data-cell"));
+      tip.classList.add("on");
+    });
+    document.addEventListener("mousemove", function (e) {
+      var tip = el("mapTip");
+      if (!tip || !tip.classList.contains("on")) return;
+      var x = Math.min(window.innerWidth - 320, e.clientX + 16);
+      var y = Math.min(window.innerHeight - 170, e.clientY + 16);
+      tip.style.left = Math.max(8, x) + "px";
+      tip.style.top = Math.max(8, y) + "px";
+    });
+    document.addEventListener("mouseout", function (e) {
+      var c = e.target.closest("[data-cellmap]");
+      if (!c) return;
+      if (e.relatedTarget && c.contains(e.relatedTarget)) return;
+      var tip = el("mapTip");
+      if (tip) tip.classList.remove("on");
+    });
+
     document.addEventListener("change", function (e) {
       var t = e.target;
       if (t.matches("[data-reg]")) {
@@ -1678,8 +1953,8 @@
         state.page = 1;
         refreshRegistry();
       }
-      if (t.matches("[data-stock]")) { state.stock[t.getAttribute("data-stock")] = t.value; render(); }
-      if (t.matches("[data-map]")) { state.map[t.getAttribute("data-map")] = t.value; state.map.sel = null; render(); }
+      if (t.matches("[data-stock]")) { state.stock[t.getAttribute("data-stock")] = t.value; refreshStock(); }
+      if (t.matches("[data-map]")) { state.map[t.getAttribute("data-map")] = t.value; state.map.sel = null; refreshMap(); }
       if (t.matches("[data-rep]")) { state.period[t.getAttribute("data-rep")] = t.value; render(); }
       if (t.id === "opFromZone" || t.id === "opToZone") {
         syncDraftFromDom();
@@ -1687,9 +1962,18 @@
         else { state.opDraft.toZone = t.value; state.opDraft.toCells = []; }
         renderOpModal();
       }
-      if (t.id === "opSize" || t.id === "opMeters" || t.id === "opQty" || t.id === "opStatus") {
+      if (t.id === "opSize" || t.id === "opStatus") {
         syncDraftFromDom();
         var sum = el("opSummary"); if (sum) sum.innerHTML = opSummaryHtml(state.opDraft);
+        var it = sizeById(state.opDraft.sizeId);
+        var ml = el("opMetersLabel"); if (ml) ml.textContent = isPipe(it) ? "Метров" : "Метров (необязательно)";
+        var ql = el("opQtyLabel"); if (ql) ql.textContent = isPipe(it) ? "Штук" : "Штук (обязательно)";
+        var ui = el("opUnitInfo"); if (ui) ui.textContent = it ? (isPipe(it) ? "метры" : "штуки") : "—";
+        refreshOpCells();
+      } else if (t.id === "opMeters" || t.id === "opQty") {
+        syncDraftFromDom();
+        var sum2 = el("opSummary"); if (sum2) sum2.innerHTML = opSummaryHtml(state.opDraft);
+        refreshOpHints();
       }
       if (t.id === "uRole") {
         var preset = ROLE_PRESETS[t.value] || [];
@@ -1697,7 +1981,14 @@
           c.checked = t.value === "admin" || preset.indexOf(c.getAttribute("data-perm")) > -1;
         });
       }
-      if (t.id === "sD" || t.id === "sW") updateSizePreview();
+      if (t.id === "sD" || t.id === "sW" || t.id === "sKgUnit") updateSizePreview();
+      if (t.id === "sUnit" || t.id === "sKind") {
+        var unitSel = el("sUnit").value;
+        var pf = el("sPipeFields"), cf = el("sPcsFields");
+        if (pf) pf.classList.toggle("hidden", unitSel === "pcs");
+        if (cf) cf.classList.toggle("hidden", unitSel !== "pcs");
+        updateSizePreview();
+      }
     });
 
     document.addEventListener("input", function (e) {
@@ -1705,11 +1996,13 @@
       if (t.id === "opMeters" || t.id === "opQty") {
         if (t.id === "opMeters") {
           var mm = Number(t.value) || 0, qq = el("opQty");
-          if (qq && (!qq.value || Number(qq.value) === 0) && mm > 0) qq.value = Math.round(mm / 12);
+          var curItem = sizeById(state.opDraft.sizeId);
+          if (isPipe(curItem) && qq && (!qq.value || Number(qq.value) === 0) && mm > 0) qq.value = Math.round(mm / 12);
         }
         syncDraftFromDom();
         var sumEl = el("opSummary");
         if (sumEl) sumEl.innerHTML = opSummaryHtml(state.opDraft);
+        refreshOpHints();
       }
       if (t.matches('[data-reg="q"]')) {
         state.reg.q = t.value;
@@ -1719,12 +2012,12 @@
       if (t.matches('[data-stock="q"]')) {
         state.stock.q = t.value;
         clearTimeout(bindEvents._st);
-        bindEvents._st = setTimeout(render, 220);
+        bindEvents._st = setTimeout(refreshStock, 220);
       }
       if (t.id === "searchMain") {
         state.search = t.value;
         clearTimeout(bindEvents._sr);
-        bindEvents._sr = setTimeout(render, 250);
+        bindEvents._sr = setTimeout(refreshSearch, 250);
       }
     });
   }
@@ -1754,6 +2047,7 @@
     var i = arr.indexOf(cell);
     if (i > -1) arr.splice(i, 1); else arr.push(cell);
     btn.classList.toggle("on");
+    refreshOpHints();
   }
 
   function handleAction(btn) {
@@ -1799,13 +2093,18 @@
     n.read = true;
     persist();
     paintBell();
-    if (state.route === "notifications") render();
+    var item = document.querySelector('[data-notif="' + id + '"]');
+    if (item) item.classList.remove("unread");
+    var cnt = el("notifCount");
+    if (cnt) cnt.textContent = "непрочитанных: " + unreadCount();
     paintNotifPanel();
   }
   function markAllRead() {
     store.notifications.forEach(function (n) { n.read = true; });
     persist(); paintBell(); paintNotifPanel();
-    if (state.route === "notifications") render();
+    document.querySelectorAll("[data-notif]").forEach(function (x) { x.classList.remove("unread"); });
+    var cnt = el("notifCount");
+    if (cnt) cnt.textContent = "непрочитанных: 0";
     toast("Все уведомления прочитаны", "ok");
   }
 
