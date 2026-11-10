@@ -1,50 +1,54 @@
 (function () {
   "use strict";
 
-  var KEY = "utp_v2", SKEY = "utp_user";
+  var KEY = "utp_v3", SKEY = "utp_user_v3", VERSION = 3;
 
-  /* ================= справочные данные ================= */
-  var REFS = {
-    territories: ["Т1","Т2","Т3","Т4","Т5","Т6","Т7","Т8","Т9","Т10","Цех"],
-    racks: ["С1","С2","С3","С4","С5"],
-    cells: ["Я01","Я02","Я03","Я04","Я05","Я06","Я07","Я08","Я09","Я10"],
-    plants: ["ТМК","ВТЗ","СинТЗ","ПНТЗ","ЧТПЗ","Северский трубный","ОМК","Иной"],
-    cranes: ["Кран 1","Кран 2","Кран 3","Кран 4","Кран 5","Кран 6","Кран 7","Кран 8","Кран 9","Кран 10"],
-    types: ["Приход","Расход","Перемещение","Подача в цех","Возврат из цеха"]
+  /* ================= иконки ================= */
+  var ICONS = {
+    grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+    list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+    box: '<path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/>',
+    map: '<path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3-6-3zM9 4v13M15 7v13"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    check: '<path d="M4 12l5 5L20 6"/>',
+    users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.2 3.2 0 010 7M18 14.5c2 .8 3 2.6 3 5.5"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+    bell: '<path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21a2 2 0 004 0"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 115 0c0 1.5-2.5 1.8-2.5 4"/><path d="M12 17h.01"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    edit: '<path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+    download: '<path d="M12 4v11M8 11l4 4 4-4M5 20h14"/>',
+    upload: '<path d="M12 20V9M8 13l4-4 4 4M5 4h14"/>',
+    print: '<path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/>',
+    building: '<path d="M4 21V5l8-3v19M12 21h8V9l-8-3M7 8h2M7 12h2M7 16h2M16 12h1M16 16h1"/>',
+    pipe: '<path d="M3 9h12a4 4 0 014 4v8M3 15h8"/><path d="M3 6v6M21 15v6"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>'
   };
+  function icon(name, cls) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"' + (cls ? ' class="' + cls + '"' : "") + ">" + (ICONS[name] || ICONS.grid) + "</svg>";
+  }
 
-  var EMPLOYEES = [
-    ["Иванов И.П.","1001"],["Петров А.С.","1002"],["Сидоров В.Н.","1003"],["Смирнов Д.М.","1004"],
-    ["Кузнецов Е.В.","1005"],["Попов К.А.","1006"],["Соколов М.С.","1007"],["Михайлов Н.Д.","1008"],
-    ["Новиков П.К.","1009"],["Фёдоров С.В.","1010"],["Морозов Р.А.","1011"],["Волков Г.О.","1012"],
-    ["Алексеев Л.М.","1013"],["Лебедев Т.Е.","1014"],["Семёнов Ю.Н.","1015"],["Егоров И.В.","1016"],
-    ["Павлов А.Н.","1017"],["Козлов В.С.","1018"],["Степанов Д.К.","1019"],["Николаев Е.А.","1020"],
-    ["Орлов М.В.","1021"],["Андреев Н.С.","1022"],["Макаров П.А.","1023"],["Никитин Р.К.","1024"],
-    ["Захаров С.Н.","1025"],["Зайцев О.Д.","1026"],["Соловьёв Г.В.","1027"],["Борисов Л.А.","1028"],
-    ["Яковлев Т.С.","1029"],["Григорьев Ю.М.","1030"],["Романов И.А.","1031"],["Воробьёв А.В.","1032"],
-    ["Сергеев В.К.","1033"],["Костин Д.С.","1034"],["Давыдов Е.Н.","1035"],["Кириллов М.А.","1036"],
-    ["Гусев Н.В.","1037"],["Котов П.С.","1038"],["Максимов Р.М.","1039"],["Титов С.К.","1040"],
-    ["Куликов О.В.","1041"],["Жуков Г.С.","1042"],["Васильев Л.Д.","1043"],["Терентьев Т.А.","1044"],
-    ["Трофимов Ю.П.","1045"],["Фролов И.С.","1046"],["Антонов А.М.","1047"],["Гордеев В.Д.","1048"],
-    ["Беляев Д.Н.","1049"],["Романов Е.К.","1050"]
-  ];
-
+  /* ================= каталог труб ================= */
   function buildCatalog() {
-    var OBS = [[102,[4,5.6,6.2]],[114,[5.2,6.2,7.3]],[127,[5.6,6.5,7.9]],[140,[6.2,7.1,8.5]],
-      [146,[6.5,7.7,9.5]],[168,[6.5,8,9.5]],[178,[6.9,8.5,10.2]],[194,[7.6,9.5,11.1]],
-      [219,[8,10.7,12.7]],[245,[8.9,11.5,13.8]],[273,[9.5,12.5,15.1]],[299,[10,13,16]],
-      [324,[10.5,13.5,16.5]],[340,[11,14,17.5]],[351,[11.5,14.5,18]],[377,[12,15,18.5]],[426,[12.5,15.5,19]]];
-    var BUR = [[60,[5,7]],[73,[5.5,7,9]],[89,[6.5,8,11]],[102,[7,9,11]],[114,[7,9,11]],[127,[7,9,11]],[140,[8,10,12]]];
-    var NKT = [[60,[5]],[73,[5.5,7]],[89,[6.5,8]],[102,[6.5,7]],[114,[7,8]]];
+    var OBS = [[102, [4, 5.6, 6.2]], [114, [5.2, 6.2, 7.3]], [127, [5.6, 6.5, 7.9]], [140, [6.2, 7.1, 8.5]],
+      [146, [6.5, 7.7, 9.5]], [168, [6.5, 8, 9.5]], [178, [6.9, 8.5, 10.2]], [194, [7.6, 9.5, 11.1]],
+      [219, [8, 10.7, 12.7]], [245, [8.9, 11.5, 13.8]], [273, [9.5, 12.5, 15.1]], [299, [10, 13, 16]],
+      [324, [10.5, 13.5, 16.5]], [340, [11, 14, 17.5]], [351, [11.5, 14.5, 18]], [377, [12, 15, 18.5]], [426, [12.5, 15.5, 19]]];
+    var BUR = [[60, [5, 7]], [73, [5.5, 7, 9]], [89, [6.5, 8, 11]], [102, [7, 9, 11]], [114, [7, 9, 11]], [127, [7, 9, 11]], [140, [8, 10, 12]]];
+    var NKT = [[60, [5]], [73, [5.5, 7]], [89, [6.5, 8]], [102, [6.5, 7]], [114, [7, 8]]];
     var out = [];
-    [["Обсадная",OBS,"ГОСТ 632-80"],["Бурильная",BUR,"ГОСТ 631-75"],["НКТ",NKT,"ГОСТ 633-80"]].forEach(function (g) {
+    [["Обсадная", OBS, "ГОСТ 632-80"], ["Бурильная", BUR, "ГОСТ 631-75"], ["НКТ", NKT, "ГОСТ 633-80"]].forEach(function (g) {
       g[1].forEach(function (row) {
         row[1].forEach(function (w) {
           out.push({
             id: g[0] + "-" + row[0] + "-" + w,
-            type: g[0], size: g[0] + " Ø" + row[0] + "×" + w,
-            d: row[0], w: w,
-            mass: Math.round(0.02466 * w * (row[0] - w) * 100) / 100,
+            type: g[0], d: row[0], w: w,
+            label: g[0] + " Ø" + row[0] + "×" + w,
+            kgm: Math.round(0.02466 * w * (row[0] - w) * 100) / 100,
             gost: g[2]
           });
         });
@@ -53,23 +57,93 @@
     return out;
   }
 
+  /* ================= сотрудники ================= */
+  var EMPLOYEES = [
+    ["Иванов И.П.", "1001", "Кладовщик"], ["Петров А.С.", "1002", "Начальник участка"], ["Сидоров В.Н.", "1003", "Кладовщик"],
+    ["Смирнов Д.М.", "1004", "Кладовщик"], ["Кузнецов Е.В.", "1005", "Мастер"], ["Попов К.А.", "1006", "Кладовщик"],
+    ["Соколов М.С.", "1007", "Кладовщик"], ["Михайлов Н.Д.", "1008", "Мастер"], ["Новиков П.К.", "1009", "Кладовщик"],
+    ["Фёдоров С.В.", "1010", "Кладовщик"], ["Морозов Р.А.", "1011", "Кладовщик"], ["Волков Г.О.", "1012", "Мастер"],
+    ["Алексеев Л.М.", "1013", "Кладовщик"], ["Лебедев Т.Е.", "1014", "Кладовщик"], ["Семёнов Ю.Н.", "1015", "Кладовщик"],
+    ["Егоров И.В.", "1016", "Кладовщик"], ["Павлов А.Н.", "1017", "Кладовщик"], ["Козлов В.С.", "1018", "Мастер"],
+    ["Степанов Д.К.", "1019", "Кладовщик"], ["Николаев Е.А.", "1020", "Кладовщик"], ["Орлов М.В.", "1021", "Кладовщик"],
+    ["Андреев Н.С.", "1022", "Кладовщик"], ["Макаров П.А.", "1023", "Кладовщик"], ["Никитин Р.К.", "1024", "Кладовщик"],
+    ["Захаров С.Н.", "1025", "Кладовщик"], ["Зайцев О.Д.", "1026", "Кладовщик"], ["Соловьёв Г.В.", "1027", "Кладовщик"],
+    ["Борисов Л.А.", "1028", "Кладовщик"], ["Яковлев Т.С.", "1029", "Кладовщик"], ["Григорьев Ю.М.", "1030", "Кладовщик"]
+  ];
+
+  /* ================= права ================= */
+  var PERM_GROUPS = [
+    { group: "Просмотр", items: [["dash.view", "Главная"], ["reg.view", "Реестр операций"], ["stock.view", "Остатки"], ["map.view", "Схема склада"], ["rep.view", "Отчёты"], ["search.view", "Поиск"]] },
+    { group: "Операции", items: [["op.create", "Создавать операции"], ["op.edit", "Изменять операции"], ["op.delete", "Удалять операции"], ["data.export", "Экспорт и импорт"]] },
+    { group: "Администрирование", items: [["adm.users", "Пользователи и права"], ["adm.refs", "Оргединицы и территории"], ["adm.catalog", "Каталог труб"], ["adm.audit", "Журнал и проверки"]] }
+  ];
+  var ALL_PERMS = [];
+  PERM_GROUPS.forEach(function (g) { g.items.forEach(function (i) { ALL_PERMS.push(i[0]); }); });
+
+  var ROLE_PRESETS = {
+    admin: ALL_PERMS.slice(),
+    manager: ["dash.view", "reg.view", "stock.view", "map.view", "rep.view", "search.view", "op.edit", "data.export", "adm.audit"],
+    keeper: ["dash.view", "reg.view", "stock.view", "map.view", "rep.view", "search.view", "op.create", "op.edit", "data.export"],
+    viewer: ["dash.view", "reg.view", "stock.view", "map.view", "rep.view", "search.view"]
+  };
+  var ROLE_LABELS = { admin: "Администратор", manager: "Начальник участка", keeper: "Кладовщик", viewer: "Наблюдатель" };
+  var ROLE_BADGE = { admin: "bad", manager: "info", keeper: "ok", viewer: "muted" };
+
+  /* ================= данные ================= */
+  function cellCode(zone, i) {
+    if (zone.type === "shop") return "Ц-" + (i + 1);
+    if (zone.type === "pvc") return "ПВХ-" + (i + 1);
+    return "Я" + String(i + 1).padStart(2, "0");
+  }
+
   function seed() {
-    var employees = EMPLOYEES.map(function (e, i) {
-      return { id: "e" + (i + 1), fio: e[0], tab: e[1], pos: "Кладовщик", role: "Кладовщик", active: true };
+    var units = [
+      { id: "u_cbt", code: "ЦБТ", name: "Центральная база труб" },
+      { id: "u_cot", code: "ЦОТ", name: "Отдел труб" },
+      { id: "u_cnkt", code: "ЦНКТ", name: "Цех насосно-компрессорных труб" },
+      { id: "u_cprr", code: "ЦПРР", name: "Цех подготовки и ремонта труб" }
+    ];
+    var territories = [{ id: "t_by", name: "Белый Яр" }];
+    var zones = [];
+    for (var r = 1; r <= 5; r++) {
+      zones.push({ id: "z_s" + r, territoryId: "t_by", name: "Стеллаж " + r, type: "rack", cells: 10, capacity: 120 });
+    }
+    zones.push({ id: "z_pvc", territoryId: "t_by", name: "Автокрановая площадка временного хранения ПВХ", type: "pvc", cells: 6, capacity: 200 });
+    zones.push({ id: "z_shop", territoryId: "t_by", name: "Цех", type: "shop", cells: 4, capacity: 400 });
+
+    var users = EMPLOYEES.map(function (e, i) {
+      return {
+        id: "e" + (i + 1), fio: e[0], tab: e[1], pos: e[2],
+        role: i === 1 ? "manager" : (e[2] === "Мастер" ? "manager" : "keeper"),
+        orgUnitId: units[i % units.length].id,
+        perms: null, active: true
+      };
     });
-    employees.push({ id: "e99", fio: "Руководитель", tab: "9999", pos: "Начальник участка", role: "Руководитель", active: true });
+    users.push({ id: "e99", fio: "Руководитель", tab: "9999", pos: "Начальник участка", role: "admin", orgUnitId: "u_cbt", perms: null, active: true });
+    users[0].role = "admin";
+
+    var ops = [
+      { id: "o1", date: "2026-10-28", type: "in", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 1440, qty: 120, status: "raw", from: [], to: [{ zoneId: "z_s1", cell: "Я01" }, { zoneId: "z_s1", cell: "Я02" }], plant: "ТМК", note: "Поступление с завода", user: "Иванов И.П.", created: "2026-10-28T09:15:00" },
+      { id: "o2", date: "2026-11-01", type: "in", orgUnitId: "u_cbt", sizeId: "НКТ-89-6.5", meters: 600, qty: 50, status: "raw", from: [], to: [{ zoneId: "z_s2", cell: "Я03" }], plant: "СинТЗ", note: "Поступление с завода", user: "Петров А.С.", created: "2026-11-01T10:40:00" },
+      { id: "o3", date: "2026-11-03", type: "to_shop", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 240, qty: 20, status: "raw", from: [{ zoneId: "z_s1", cell: "Я01" }], to: [{ zoneId: "z_shop", cell: "Ц-1" }], plant: "ТМК", note: "Подача на подготовку", user: "Иванов И.П.", created: "2026-11-03T08:20:00" },
+      { id: "o4", date: "2026-11-05", type: "from_shop", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 240, qty: 20, status: "prepared", from: [{ zoneId: "z_shop", cell: "Ц-1" }], to: [{ zoneId: "z_s1", cell: "Я01" }], plant: "ТМК", note: "Возврат подготовленной", user: "Иванов И.П.", created: "2026-11-05T14:05:00" },
+      { id: "o5", date: "2026-11-06", type: "ship", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 120, qty: 10, status: "prepared", from: [{ zoneId: "z_s1", cell: "Я01" }], to: [], plant: "ТМК", note: "Отгрузка в ЦПРР", user: "Сидоров В.Н.", created: "2026-11-06T11:30:00" },
+      { id: "o6", date: "2026-11-07", type: "in", orgUnitId: "u_cot", sizeId: "Бурильная-127-9", meters: 360, qty: 30, status: "raw", from: [], to: [{ zoneId: "z_s3", cell: "Я05" }, { zoneId: "z_s3", cell: "Я06" }], plant: "ВТЗ", note: "Поступление с завода", user: "Смирнов Д.М.", created: "2026-11-07T09:50:00" },
+      { id: "o7", date: "2026-11-08", type: "move", orgUnitId: "u_cbt", sizeId: "Обсадная-168-8", meters: 240, qty: 20, status: "raw", from: [{ zoneId: "z_s1", cell: "Я02" }], to: [{ zoneId: "z_s2", cell: "Я07" }], plant: "", note: "Перестановка для удобства отгрузки", user: "Иванов И.П.", created: "2026-11-08T16:10:00" },
+      { id: "o8", date: "2026-11-09", type: "in", orgUnitId: "u_cnkt", sizeId: "НКТ-73-5.5", meters: 480, qty: 40, status: "raw", from: [], to: [{ zoneId: "z_pvc", cell: "ПВХ-1" }, { zoneId: "z_pvc", cell: "ПВХ-2" }], plant: "ПНТЗ", note: "Временное хранение ПВХ", user: "Кузнецов Е.В.", created: "2026-11-09T12:00:00" }
+    ];
+
     return {
-      meta: { org: "ПАО «Сургутнефтегаз»", version: 2, created: "2026-01-05" },
-      refs: JSON.parse(JSON.stringify(REFS)),
-      employees: employees,
+      meta: { org: "ПАО «Сургутнефтегаз»", version: VERSION, created: todayISO() },
+      settings: { cellCapacity: 120, demo: true },
+      orgUnits: units,
+      territories: territories,
+      zones: zones,
       catalog: buildCatalog(),
-      ops: [
-        { id: "o1", date: "2026-01-15", type: "Приход", size: "Обсадная Ø146×7.7", plant: "ТМК", qty: 120, ft: "", fr: "", fc: "", tt: "Т1", tr: "С1", tc: "Я01", crane: "Кран 1", emp: "Иванов И.П.", note: "Пример: поступление" },
-        { id: "o2", date: "2026-01-18", type: "Перемещение", size: "Обсадная Ø146×7.7", plant: "ТМК", qty: 40, ft: "Т1", fr: "С1", fc: "Я01", tt: "Т1", tr: "С2", tc: "Я02", crane: "Кран 2", emp: "Иванов И.П.", note: "Пример: перестановка" },
-        { id: "o3", date: "2026-01-20", type: "Расход", size: "Обсадная Ø146×7.7", plant: "ТМК", qty: 25, ft: "Т1", fr: "С2", fc: "Я02", tt: "", tr: "", tc: "", crane: "Кран 2", emp: "Петров А.С.", note: "Пример: выдача" },
-        { id: "o4", date: "2026-01-22", type: "Приход", size: "НКТ Ø89×6.5", plant: "СинТЗ", qty: 300, ft: "", fr: "", fc: "", tt: "Т3", tr: "С1", tc: "Я05", crane: "Кран 3", emp: "Петров А.С.", note: "Пример: поступление" },
-        { id: "o5", date: "2026-01-25", type: "Подача в цех", size: "Бурильная Ø127×9", plant: "ВТЗ", qty: 12, ft: "Т3", fr: "С1", fc: "Я05", tt: "Цех", tr: "", tc: "", crane: "Кран 4", emp: "Сидоров В.Н.", note: "Пример: подача" }
-      ]
+      users: users,
+      ops: ops,
+      notifications: [],
+      audit: [{ id: "a0", ts: new Date().toISOString(), user: "Система", action: "Инициализация базы", details: "Демонстрационные данные v3" }]
     };
   }
 
@@ -79,35 +153,43 @@
       var raw = localStorage.getItem(KEY);
       if (raw) {
         var d = JSON.parse(raw);
-        if (d && d.ops && d.catalog && d.employees) return d;
+        if (d && d.meta && d.meta.version === VERSION && d.ops && d.users && d.catalog) return d;
       }
     } catch (e) {}
     var s = seed();
-    save(s);
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e2) {}
     return s;
   }
-  function save(d) {
-    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
-  }
   var store = load();
-  function persist() { save(store); }
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 
   var session = null;
   try {
-    var t = sessionStorage.getItem(SKEY);
-    if (t) session = store.employees.filter(function (e) { return e.tab === t; })[0] || null;
+    var st = sessionStorage.getItem(SKEY);
+    if (st) session = store.users.filter(function (u) { return u.tab === st && u.active !== false; })[0] || null;
   } catch (e) {}
 
   /* ================= утилиты ================= */
+  function el(id) { return document.getElementById(id); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
   var nf = new Intl.NumberFormat("ru-RU");
-  var nf2 = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var nf1 = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   function fmtInt(n) { return nf.format(Math.round(n || 0)); }
-  function fmtNum(n) { return nf2.format(n || 0); }
+  function fmt1(n) { return nf1.format(n || 0); }
+  function fmtLen(m) {
+    m = Math.round(m || 0);
+    if (m < 1000) return fmtInt(m) + " м";
+    var km = Math.floor(m / 1000), rest = m % 1000;
+    return fmtInt(km) + " км" + (rest ? " " + fmtInt(rest) + " м" : "");
+  }
+  function fmtTon(kg) {
+    var t = (kg || 0) / 1000;
+    return (t >= 100 ? fmtInt(t) : fmt1(t)) + " т";
+  }
   function todayISO() {
     var d = new Date(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
     return d.getFullYear() + "-" + m + "-" + day;
@@ -115,865 +197,1638 @@
   function fmtDate(iso) {
     if (!iso) return "—";
     var p = iso.split("-");
-    return p[2] + "." + p[1] + "." + p[0];
+    return p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : iso;
   }
-  function uid() { return "op" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-  function catBySize(size) {
-    return store.catalog.filter(function (c) { return c.size === size; })[0] || null;
+  function fmtDateTime(ts) {
+    var d = new Date(ts);
+    if (isNaN(d)) return "";
+    return d.toLocaleDateString("ru-RU") + " " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   }
-  function massOf(op) {
-    var c = catBySize(op.size);
-    return c ? c.mass : 0;
+  function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+  function byId(arr, id) { return arr.filter(function (x) { return x.id === id; })[0] || null; }
+  function sizeById(id) { return byId(store.catalog, id); }
+  function unitById(id) { return byId(store.orgUnits, id); }
+  function terrById(id) { return byId(store.territories, id); }
+  function zoneById(id) { return byId(store.zones, id); }
+  function cellsOf(zoneId) {
+    var z = zoneById(zoneId);
+    if (!z) return [];
+    var out = [];
+    for (var i = 0; i < z.cells; i++) out.push(cellCode(z, i));
+    return out;
   }
-  function addrKey(t, r, c) {
-    if (!t) return "";
-    if (t === "Цех") return "Цех";
-    return t + "/" + r + "/" + c;
+  function zoneTypeLabel(t) {
+    return t === "rack" ? "Стеллаж" : t === "pvc" ? "Площадка ПВХ" : t === "shop" ? "Цех" : "Зона";
   }
-  function opMassT(op) { return massOf(op) * op.qty / 1000; }
+  function unitLabel(u) { return u ? u.code + " (" + u.name + ")" : "—"; }
+  function sizeLabel(id) { var s = sizeById(id); return s ? s.label : id; }
+  function statusLabel(s) { return s === "prepared" ? "Подготовленная" : "Не подготовленная"; }
+  function statusBadge(s) { return s === "prepared" ? '<span class="badge ok">Готова</span>' : '<span class="badge warn">Не готова</span>'; }
 
   var toastTimer = null;
-  function toast(msg, isErr) {
-    var el = document.getElementById("toast");
-    el.textContent = msg;
-    el.className = "toast show" + (isErr ? " err" : "");
+  function toast(msg, kind) {
+    var t = el("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (kind ? " " + kind : "");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.className = "toast"; }, 2600);
+    toastTimer = setTimeout(function () { t.className = "toast"; }, 2800);
+  }
+
+  /* ================= права ================= */
+  function permsOf(u) {
+    if (!u) return [];
+    if (u.role === "admin") return ALL_PERMS.slice();
+    return (u.perms ? u.perms : ROLE_PRESETS[u.role]) || [];
+  }
+  function can(p) {
+    if (!session) return false;
+    if (session.role === "admin") return true;
+    return permsOf(session).indexOf(p) !== -1;
   }
 
   /* ================= состояние ================= */
   var state = {
     route: "dashboard",
-    period: { from: "2026-01-01", to: todayISO() },
-    reg: { from: "2026-01-01", to: todayISO(), type: "", q: "" },
+    period: { from: "", to: "" },
+    reg: { from: "", to: "", type: "", unit: "", status: "", q: "" },
     page: 1,
-    mapTerritory: "Т1",
+    map: { territoryId: "t_by", unitId: "", d: "" },
+    stock: { unit: "", status: "", q: "" },
     search: "",
-    refTab: "catalog"
+    adminTab: "users",
+    profileTab: "activity"
   };
-  var PAGE_SIZE = 25;
+  var PAGE_SIZE = 20;
+
+  /* ================= уведомления и журнал ================= */
+  function notify(title, text, kind) {
+    store.notifications.unshift({
+      id: uid("n"), ts: new Date().toISOString(), title: title, text: text || "",
+      kind: kind || "info", read: false, to: null
+    });
+    if (store.notifications.length > 120) store.notifications.length = 120;
+    persist();
+    paintBell();
+  }
+  function logAction(action, details) {
+    store.audit.unshift({
+      id: uid("a"), ts: new Date().toISOString(),
+      user: session ? session.fio : "Система", action: action, details: details || ""
+    });
+    if (store.audit.length > 400) store.audit.length = 400;
+    persist();
+  }
+  function unreadCount() { return store.notifications.filter(function (n) { return !n.read; }).length; }
+  function paintBell() {
+    var n = unreadCount(), d = el("bellDot");
+    if (!d) return;
+    d.textContent = n > 9 ? "9+" : String(n);
+    d.className = "dot-badge" + (n ? " on" : "");
+    var nav = document.querySelector('[data-nav="notifications"] .pill');
+    if (nav) nav.textContent = n;
+  }
 
   /* ================= вычисления ================= */
-  function opsInPeriod() {
-    return store.ops.filter(function (o) {
-      return (!state.period.from || o.date >= state.period.from) && (!state.period.to || o.date <= state.period.to);
+  function opSigns(op) {
+    var out = [];
+    var srcStatus = op.type === "from_shop" ? "prepared" : op.status;
+    var dstStatus = op.type === "to_shop" ? "prepared" : (op.type === "from_shop" ? "prepared" : op.status);
+    (op.from || []).forEach(function (c) {
+      out.push({ zoneId: c.zoneId, cell: c.cell, sizeId: op.sizeId, status: srcStatus, meters: -op.meters, qty: -op.qty });
     });
+    (op.to || []).forEach(function (c) {
+      out.push({ zoneId: c.zoneId, cell: c.cell, sizeId: op.sizeId, status: dstStatus, meters: op.meters, qty: op.qty });
+    });
+    return out;
   }
-  function filteredOps() {
+  function share(n, cells) { return cells && cells.length ? n / cells.length : 0; }
+  function balanceMap(filter) {
+    var map = {};
+    function add(k, meters, qty) {
+      if (!map[k]) map[k] = { meters: 0, qty: 0 };
+      map[k].meters += meters; map[k].qty += qty;
+    }
+    store.ops.forEach(function (op) {
+      if (filter && !filter(op)) return;
+      var src = op.from || [], dst = op.to || [];
+      var srcShare = share(op.meters, src), srcQty = share(op.qty, src);
+      var dstShare = share(op.meters, dst), dstQty = share(op.qty, dst);
+      (op.from || []).forEach(function (c) {
+        add(op.orgUnitId + "|" + c.zoneId + "|" + c.cell + "|" + op.sizeId + "|" + (op.type === "from_shop" ? "prepared" : op.status), -srcShare, -srcQty);
+      });
+      (op.to || []).forEach(function (c) {
+        add(op.orgUnitId + "|" + c.zoneId + "|" + c.cell + "|" + op.sizeId + "|" + (op.type === "to_shop" ? "prepared" : op.status), dstShare, dstQty);
+      });
+    });
+    return map;
+  }
+  function stockList() {
+    var map = balanceMap();
+    var rows = {};
+    Object.keys(map).forEach(function (k) {
+      var b = map[k];
+      if (b.meters <= 0.001 && b.qty <= 0.001) return;
+      var p = k.split("|");
+      var z = zoneById(p[1]);
+      if (!z) return;
+      var key = p[0] + "|" + z.id + "|" + p[2] + "|" + p[3] + "|" + p[4];
+      rows[key] = { orgUnitId: p[0], zoneId: z.id, territoryId: z.territoryId, cell: p[2], sizeId: p[3], status: p[4], meters: b.meters, qty: b.qty };
+    });
+    return Object.keys(rows).map(function (k) { return rows[k]; });
+  }
+  function totals(rows) {
+    var t = { meters: 0, qty: 0, kg: 0 };
+    rows.forEach(function (r) {
+      var s = sizeById(r.sizeId);
+      t.meters += r.meters; t.qty += r.qty; t.kg += r.meters * (s ? s.kgm : 0);
+    });
+    return t;
+  }
+  function avgLength(t) { return t.qty > 0 ? t.meters / t.qty : 0; }
+  function occupancyCell(map, zoneId, cell) { return map[zoneId + "|" + cell] || 0; }
+  function occupancyMap(filter) {
+    var out = {};
+    var map = balanceMap(filter);
+    Object.keys(map).forEach(function (k) {
+      var p = k.split("|");
+      var key = p[0] + "|" + p[1];
+      out[key] = (out[key] || 0) + map[k].meters;
+    });
+    return out;
+  }
+  function fillClass(pct) {
+    if (pct >= 80) return "high";
+    if (pct >= 40) return "mid";
+    if (pct > 0) return "low";
+    return "";
+  }
+  function opsFiltered() {
     var f = state.reg, q = f.q.trim().toLowerCase();
     return store.ops.filter(function (o) {
       if (f.from && o.date < f.from) return false;
       if (f.to && o.date > f.to) return false;
       if (f.type && o.type !== f.type) return false;
+      if (f.unit && o.orgUnitId !== f.unit) return false;
+      if (f.status && o.status !== f.status) return false;
       if (q) {
-        var hay = [o.date, fmtDate(o.date), o.type, o.size, o.plant, o.emp, o.crane, o.note,
-          addrKey(o.ft, o.fr, o.fc), addrKey(o.tt, o.tr, o.tc)].join(" ").toLowerCase();
+        var hay = [o.date, fmtDate(o.date), typeLabel(o.type), sizeLabel(o.sizeId), o.plant, o.user, o.note,
+          unitById(o.orgUnitId) ? unitById(o.orgUnitId).code : "", addrText(o.from), addrText(o.to)].join(" ").toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
-    }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.created < b.created ? 1 : -1); });
   }
-  function balances() {
-    var map = {};
-    function add(k, q, m) {
-      if (!k) return;
-      if (!map[k]) map[k] = { qty: 0, mass: 0 };
-      map[k].qty += q; map[k].mass += m;
-    }
-    store.ops.forEach(function (o) {
-      var m = opMassT(o);
-      if (o.type !== "Приход") add(addrKey(o.ft, o.fr, o.fc), -o.qty, -m);
-      if (o.type !== "Расход") add(addrKey(o.tt, o.tr, o.tc), o.qty, m);
-    });
-    return map;
+  function typeLabel(t) {
+    return { in: "Приход", move: "Перемещение", to_shop: "В цех", from_shop: "Из цеха", ship: "Отгрузка", writeoff: "Списание" }[t] || t;
   }
-  function stockTotals() {
-    var b = balances(), q = 0, m = 0;
-    Object.keys(b).forEach(function (k) { q += b[k].qty; m += b[k].mass; });
-    return { qty: q, mass: m };
+  function typeBadge(t) {
+    var m = { in: "ok", move: "info", to_shop: "warn", from_shop: "info", ship: "bad", writeoff: "muted" };
+    return '<span class="badge ' + (m[t] || "muted") + '">' + typeLabel(t) + "</span>";
   }
-  function addrList() {
-    var out = [];
-    store.refs.territories.forEach(function (t) {
-      if (t === "Цех") { out.push({ code: "Цех", t: t, r: "", c: "" }); return; }
-      store.refs.racks.forEach(function (r) {
-        store.refs.cells.forEach(function (c) { out.push({ code: t + "/" + r + "/" + c, t: t, r: r, c: c }); });
-      });
-    });
-    return out;
+  function addrText(cells) {
+    if (!cells || !cells.length) return "—";
+    return cells.map(function (c) {
+      var z = zoneById(c.zoneId);
+      return (z ? z.name : "?") + " / " + c.cell;
+    }).join(", ");
   }
-
-  /* ================= маршрутизация ================= */
-  var ROUTES = {
-    dashboard: { title: "Главная", crumb: "Обзор участка", icon: "grid" },
-    registry: { title: "Реестр операций", crumb: "Все движения труб", icon: "list" },
-    stock: { title: "Остатки", crumb: "Сколько и где лежит", icon: "box" },
-    map: { title: "Схема склада", crumb: "Адресное хранение", icon: "map" },
-    reports: { title: "Отчёты", crumb: "Сводки за период", icon: "chart" },
-    search: { title: "Поиск", crumb: "По всем операциям", icon: "search" },
-    checks: { title: "Проверки", crumb: "Контроль данных", icon: "check", admin: true },
-    refs: { title: "Справочники", crumb: "НСИ участка", icon: "book", admin: true },
-    staff: { title: "Сотрудники", crumb: "Доступ и роли", icon: "users", admin: true },
-    help: { title: "Инструкция", crumb: "Правила работы", icon: "help" }
-  };
-  var ICONS = {
-    grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
-    list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
-    box: '<path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/>',
-    map: '<path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3-6-3zM9 4v13M15 7v13"/>',
-    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
-    check: '<path d="M4 12l5 5L20 6"/>',
-    book: '<path d="M4 5a2 2 0 012-2h13v18H6a2 2 0 01-2-2V5zM7 3v18"/>',
-    users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.2 3.2 0 010 7M18 14.5c2 .8 3 2.6 3 5.5"/>',
-    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 115 0c0 1.5-2.5 1.8-2.5 4"/><path d="M12 17h.01"/>'
-  };
-  function icon(name) {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[name] || ICONS.grid) + "</svg>";
-  }
-  function isAdmin() { return session && session.role === "Руководитель"; }
-
-  function navHtml() {
-    var main = ["dashboard", "registry", "stock", "map", "reports", "search"];
-    var admin = ["checks", "refs", "staff"];
-    function item(r) {
-      var meta = ROUTES[r];
-      if (meta.admin && !isAdmin()) return "";
-      var active = state.route === r ? " active" : "";
-      return '<button class="nav-item' + active + '" type="button" data-nav="' + r + '"' + (active ? ' aria-current="page"' : "") + ">" +
-        icon(meta.icon) + "<span>" + meta.title + "</span></button>";
-    }
-    document.getElementById("navMain").innerHTML = main.map(item).join("") + item("help");
-    document.getElementById("navAdmin").innerHTML = isAdmin()
-      ? '<div class="sb-label">Контроль и НСИ</div>' + admin.map(item).join("")
-      : "";
+  function addrChips(cells) {
+    if (!cells || !cells.length) return '<span class="muted">—</span>';
+    return cells.map(function (c) {
+      var z = zoneById(c.zoneId);
+      var t = z ? z.name.replace("Автокрановая площадка временного хранения ", "Площадка ") : "?";
+      return '<span class="cell-addr">' + esc(t) + " · " + esc(c.cell) + "</span>";
+    }).join("");
   }
 
   /* ================= вход ================= */
   function fillLogin() {
-    var sel = document.getElementById("loginUser");
-    var list = store.employees.filter(function (e) { return e.active !== false; })
+    var sel = el("loginUser");
+    if (!sel) return;
+    var list = store.users.filter(function (u) { return u.active !== false; })
       .sort(function (a, b) { return a.fio.localeCompare(b.fio, "ru"); });
-    sel.innerHTML = '<option value="">— выберите сотрудника —</option>' + list.map(function (e) {
-      return '<option value="' + esc(e.tab) + '">' + esc(e.fio) + " · " + esc(e.pos) + "</option>";
+    sel.innerHTML = '<option value="">— выберите сотрудника —</option>' + list.map(function (u) {
+      return '<option value="' + esc(u.tab) + '">' + esc(u.fio) + " · " + esc(ROLE_LABELS[u.role] || "") + "</option>";
     }).join("");
   }
-
-  document.getElementById("loginForm").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var sel = document.getElementById("loginUser");
-    var tab = document.getElementById("loginTab").value.trim();
-    var err = document.getElementById("loginError");
-    var emp = store.employees.filter(function (e) { return e.tab === sel.value; })[0];
-    if (!sel.value || !tab) {
-      err.textContent = "Выберите сотрудника и введите табельный номер.";
-      err.classList.remove("hidden");
+  function doLogin(e) {
+    if (e) e.preventDefault();
+    var tab = el("loginUser").value, pass = el("loginPass").value.trim();
+    var err = el("loginErr");
+    var u = store.users.filter(function (x) { return x.tab === tab; })[0];
+    if (!u) { err.textContent = "Сотрудник не выбран"; return; }
+    if (u.active === false) { err.textContent = "Доступ сотрудника отключён"; return; }
+    if (!pass || pass !== u.tab) {
+      err.textContent = "Неверный табельный номер";
+      var box = document.querySelector(".login-box");
+      box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake");
       return;
     }
-    if (!emp || emp.tab !== tab || emp.active === false) {
-      err.textContent = "Неверный табельный номер. Проверьте данные или обратитесь к ответственному за НСИ.";
-      err.classList.remove("hidden");
-      return;
-    }
-    session = emp;
-    try { sessionStorage.setItem(SKEY, emp.tab); } catch (e) {}
-    err.classList.add("hidden");
-    document.getElementById("loginTab").value = "";
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    enterApp();
-  });
-
-  function enterApp() {
-    document.getElementById("userName").textContent = session.fio;
-    document.getElementById("userRole").textContent = session.role + " · таб. " + session.tab;
-    document.getElementById("userAvatar").textContent = session.fio.split(" ")[0].slice(0, 1) + (session.fio.split(" ")[1] || "").slice(0, 1);
-    if (!ROUTES[state.route] || (ROUTES[state.route].admin && !isAdmin())) state.route = "dashboard";
-    render();
+    session = u;
+    try { sessionStorage.setItem(SKEY, u.tab); } catch (e2) {}
+    el("loginErr").textContent = "";
+    el("loginPass").value = "";
+    showApp();
   }
-
-  document.getElementById("logoutBtn").addEventListener("click", function () {
+  function logout() {
     session = null;
     try { sessionStorage.removeItem(SKEY); } catch (e) {}
-    document.getElementById("app").classList.add("hidden");
-    document.getElementById("login").classList.remove("hidden");
-    fillLogin();
-  });
+    el("shell").classList.add("hidden");
+    el("loginScreen").classList.remove("hidden");
+    el("loginScreen").style.display = "grid";
+  }
+  function initials(fio) {
+    var p = fio.split(" ");
+    return (p[0] ? p[0][0] : "") + (p[1] ? p[1][0] : "");
+  }
+  function showApp() {
+    el("loginScreen").style.display = "none";
+    el("shell").classList.remove("hidden");
+    el("ava").textContent = initials(session.fio);
+    el("ucName").textContent = session.fio;
+    el("ucRole").textContent = ROLE_LABELS[session.role] || "";
+    el("menuName").textContent = session.fio;
+    el("menuMeta").textContent = (ROLE_LABELS[session.role] || "") + " · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "");
+    el("sbFootText").textContent = "Локальная база · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "") + " · v3";
+    paintBell();
+    go("dashboard");
+  }
 
-  /* ================= рендер ================= */
-  function navigate(route) {
-    if (!ROUTES[route]) route = "dashboard";
-    if (ROUTES[route].admin && !isAdmin()) route = "dashboard";
+  /* ================= навигация ================= */
+  var NAV = [
+    { group: "Участок", items: [
+      { route: "dashboard", title: "Главная", icon: "grid", perm: "dash.view" },
+      { route: "registry", title: "Реестр операций", icon: "list", perm: "reg.view" },
+      { route: "stock", title: "Остатки", icon: "box", perm: "stock.view" },
+      { route: "map", title: "Схема склада", icon: "map", perm: "map.view" },
+      { route: "reports", title: "Отчёты", icon: "chart", perm: "rep.view" },
+      { route: "search", title: "Поиск", icon: "search", perm: "search.view" }
+    ]},
+    { group: "Личное", items: [
+      { route: "profile", title: "Профиль", icon: "user" },
+      { route: "notifications", title: "Уведомления", icon: "bell", badge: true }
+    ]},
+    { group: "Администрирование", items: [
+      { route: "admin-users", title: "Пользователи", icon: "users", perm: "adm.users" },
+      { route: "admin-refs", title: "Оргединицы и территории", icon: "building", perm: "adm.refs" },
+      { route: "admin-catalog", title: "Каталог труб", icon: "pipe", perm: "adm.catalog" },
+      { route: "admin-audit", title: "Журнал действий", icon: "shield", perm: "adm.audit" },
+      { route: "checks", title: "Проверки данных", icon: "check", perm: "adm.audit" }
+    ]},
+    { group: "Справка", items: [{ route: "help", title: "Инструкция", icon: "help" }] }
+  ];
+  var TITLES = {
+    dashboard: ["Главная", "Сводка по складу и движению труб"],
+    registry: ["Реестр операций", "Все движения труб"],
+    stock: ["Остатки", "Метры, тонны и адреса хранения"],
+    map: ["Схема склада", "Заполненность ячеек"],
+    reports: ["Отчёты", "Сводки за период"],
+    search: ["Поиск", "По всей системе"],
+    profile: ["Профиль", "Доступ и активность"],
+    notifications: ["Уведомления", "События системы"],
+    "admin-users": ["Пользователи", "Роли, права, доступ"],
+    "admin-refs": ["Оргединицы и территории", "Структура хранения"],
+    "admin-catalog": ["Каталог труб", "Типоразмеры и масса"],
+    "admin-audit": ["Журнал действий", "Кто и что менял"],
+    checks: ["Проверки данных", "Контроль целостности"],
+    help: ["Инструкция", "Правила работы"]
+  };
+
+  function navHtml() {
+    var unread = unreadCount();
+    return NAV.map(function (g) {
+      var items = g.items.filter(function (i) { return !i.perm || can(i.perm); });
+      if (!items.length) return "";
+      return '<div class="nav-group">' + esc(g.group) + "</div>" + items.map(function (i) {
+        var active = state.route === i.route ? " active" : "";
+        var pill = i.badge && unread ? '<span class="pill">' + unread + "</span>" : "";
+        return '<button class="nav-item' + active + '" data-nav="' + i.route + '">' + icon(i.icon) + "<span>" + esc(i.title) + "</span>" + pill + "</button>";
+      }).join("");
+    }).join("");
+  }
+  function paintNav() { el("nav").innerHTML = navHtml(); }
+
+  function go(route) {
+    var item = null;
+    NAV.forEach(function (g) { g.items.forEach(function (i) { if (i.route === route) item = i; }); });
+    if (item && item.perm && !can(item.perm)) { toast("Нет доступа к разделу", "err"); return; }
     state.route = route;
     state.page = 1;
+    closePanels();
+    paintNav();
+    var t = TITLES[route] || ["", ""];
+    el("pageTitle").textContent = t[0];
+    el("pageCrumb").textContent = t[1];
     render();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    el("view").classList.remove("enter"); void el("view").offsetWidth; el("view").classList.add("enter");
+    if (window.innerWidth <= 960) closeSidebar();
   }
 
   function render() {
-    if (!ROUTES[state.route] || (ROUTES[state.route].admin && !isAdmin())) state.route = "dashboard";
-    var meta = ROUTES[state.route];
-    document.getElementById("pageTitle").textContent = meta.title;
-    document.getElementById("pageCrumb").textContent = meta.crumb;
-    navHtml();
-    var host = document.getElementById("view");
-    host.innerHTML = views[state.route]();
-    bind[state.route] && bind[state.route](host);
+    var r = state.route, html = "";
+    if (r === "dashboard") html = viewDashboard();
+    else if (r === "registry") html = viewRegistry();
+    else if (r === "stock") html = viewStock();
+    else if (r === "map") html = viewMap();
+    else if (r === "reports") html = viewReports();
+    else if (r === "search") html = viewSearch();
+    else if (r === "profile") html = viewProfile();
+    else if (r === "notifications") html = viewNotifications();
+    else if (r === "admin-users") html = viewAdminUsers();
+    else if (r === "admin-refs") html = viewAdminRefs();
+    else if (r === "admin-catalog") html = viewAdminCatalog();
+    else if (r === "admin-audit") html = viewAdminAudit();
+    else if (r === "checks") html = viewChecks();
+    else if (r === "help") html = viewHelp();
+    el("view").innerHTML = html;
+    afterRender();
   }
-
-  function kpi(label, value, sub, accent) {
-    return '<div class="kpi' + (accent ? " accent" : "") + '"><div class="label">' + label + '</div>' +
-      '<div class="value">' + value + "</div>" + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>";
-  }
-
-  var views = {}, bind = {};
-
-  /* ---------- главная ---------- */
-  views.dashboard = function () {
-    var ops = opsInPeriod();
-    var inQty = 0, outQty = 0;
-    ops.forEach(function (o) { if (o.type === "Приход") inQty += o.qty; if (o.type === "Расход") outQty += o.qty; });
-    var tot = stockTotals();
-    var recent = store.ops.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8);
-    var bySize = {};
-    store.ops.forEach(function (o) { bySize[o.size] = (bySize[o.size] || 0) + o.qty * (o.type === "Приход" ? 1 : o.type === "Расход" ? -1 : 0); });
-    var topSizes = Object.keys(bySize).filter(function (k) { return bySize[k] > 0; })
-      .sort(function (a, b) { return bySize[b] - bySize[a]; }).slice(0, 6);
-    var max = topSizes.length ? bySize[topSizes[0]] : 1;
-
-    return '<div class="page-head"><div><h2>Обзор участка</h2><p>Показатели считаются по реестру операций. Период можно изменить — все цифры пересчитаются.</p></div><div class="spacer"></div>' +
-      '<div class="filters"><div class="field"><label for="dFrom">Период с</label><input class="input" type="date" id="dFrom" value="' + state.period.from + '"></div>' +
-      '<div class="field"><label for="dTo">по</label><input class="input" type="date" id="dTo" value="' + state.period.to + '"></div>' +
-      '<button class="btn btn-primary btn-sm" type="button" data-action="apply-period">Применить</button></div></div>' +
-
-      '<div class="grid kpis">' +
-      kpi("Операций за период", fmtInt(ops.length), "в реестре всего " + fmtInt(store.ops.length), true) +
-      kpi("Приход, шт", fmtInt(inQty), "за выбранный период") +
-      kpi("Расход, шт", fmtInt(outQty), "за выбранный период") +
-      kpi("Остаток на складе, шт", fmtInt(tot.qty), "по всем адресам") +
-      kpi("Масса на складе, т", fmtNum(tot.mass), "расчёт по ГОСТ") +
-      "</div>" +
-
-      '<div class="two-col">' +
-      '<div class="card"><div class="card-head"><h3>Последние операции</h3><div class="spacer"></div><button class="btn btn-ghost btn-sm" type="button" data-nav="registry">Весь реестр</button></div>' +
-      '<div class="card-body tight"><div class="table-wrap"><table class="table"><thead><tr><th>Дата</th><th>Операция</th><th>Типоразмер</th><th class="num">Кол-во</th><th>Адрес</th></tr></thead><tbody>' +
-      (recent.length ? recent.map(function (o) {
-        var place = o.type === "Приход" ? addrKey(o.tt, o.tr, o.tc) : o.type === "Расход" ? addrKey(o.ft, o.fr, o.fc) : addrKey(o.ft, o.fr, o.fc) + " → " + addrKey(o.tt, o.tr, o.tc);
-        return "<tr><td>" + fmtDate(o.date) + "</td><td>" + tagType(o.type) + "</td><td>" + esc(o.size) + '</td><td class="num">' + fmtInt(o.qty) + "</td><td>" + esc(place || "—") + "</td></tr>";
-      }).join("") : '<tr><td colspan="5" class="empty">Операций пока нет — начните с кнопки «+ Операция»</td></tr>') +
-      "</tbody></table></div></div></div>" +
-
-      '<div class="card"><div class="card-head"><h3>Остаток по номенклатуре</h3><div class="spacer"></div><span class="chip gray">топ-6</span></div><div class="card-body">' +
-      (topSizes.length ? '<div class="bars">' + topSizes.map(function (s) {
-        return '<div class="bar-row"><div title="' + esc(s) + '">' + esc(s) + '</div><div class="bar-track"><div class="bar-fill" style="width:' + Math.max(3, Math.round(bySize[s] / max * 100)) + '%"></div></div><div class="val">' + fmtInt(bySize[s]) + " шт</div></div>";
-      }).join("") + "</div>" : '<p class="muted">Нет данных за период.</p>') +
-      "</div></div></div>" +
-
-      '<div class="note" style="margin-top:14px">Быстрый старт: «+ Операция» → выберите тип, трубу и адрес. Остатки и отчёты обновятся автоматически. Перед сдачей смены откройте «Проверки».</div>';
-  };
-
-  bind.dashboard = function (host) {
-    var btn = host.querySelector('[data-action="apply-period"]');
-    btn && btn.addEventListener("click", function () {
-      var f = host.querySelector("#dFrom").value, t = host.querySelector("#dTo").value;
-      if (f && t && f > t) { toast("Дата начала позже даты окончания", true); return; }
-      state.period.from = f; state.period.to = t; render();
-    });
-  };
-
-  function tagType(t) {
-    var cls = t === "Приход" ? "tag-in" : t === "Расход" ? "tag-out" : "tag-move";
-    return '<span class="tag ' + cls + '">' + esc(t) + "</span>";
-  }
-
-  /* ---------- реестр ---------- */
-  views.registry = function () {
-    var rows = filteredOps();
-    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    if (state.page > pages) state.page = pages;
-    var slice = rows.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
-    var totalQty = rows.reduce(function (s, o) { return s + o.qty; }, 0);
-    var totalMass = rows.reduce(function (s, o) { return s + opMassT(o); }, 0);
-
-    return '<div class="page-head"><div><h2>Реестр операций</h2><p>Единственный источник данных: приход, расход, перемещение, подача в цех, возврат. Каждая строка подписывается сотрудником.</p></div><div class="spacer"></div>' +
-      '<button class="btn btn-primary" type="button" data-action="add">+ Операция</button></div>' +
-
-      '<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="filters">' +
-      '<div class="field"><label for="rFrom">С даты</label><input class="input" type="date" id="rFrom" value="' + state.reg.from + '"></div>' +
-      '<div class="field"><label for="rTo">По дату</label><input class="input" type="date" id="rTo" value="' + state.reg.to + '"></div>' +
-      '<div class="field"><label for="rType">Операция</label><select class="input" id="rType"><option value="">Все типы</option>' +
-      store.refs.types.map(function (t) { return '<option' + (state.reg.type === t ? " selected" : "") + ">" + esc(t) + "</option>"; }).join("") + "</select></div>" +
-      '<div class="field grow"><label for="rQ">Поиск</label><input class="input" id="rQ" placeholder="фамилия, завод, адрес, типоразмер…" value="' + esc(state.reg.q) + '"></div>' +
-      '<button class="btn btn-ghost btn-sm" type="button" data-action="reset">Сбросить</button>' +
-      '</div></div></div>' +
-
-      '<div class="card"><div class="card-head"><h3>Операции</h3><div class="spacer"></div>' +
-      '<span class="chip">' + fmtInt(rows.length) + ' строк</span><span class="chip gray">' + fmtInt(totalQty) + " шт · " + fmtNum(totalMass) + " т</span></div>" +
-      '<div class="card-body tight"><div class="table-wrap"><table class="table"><thead><tr><th>Дата</th><th>Операция</th><th>Типоразмер</th><th class="num">Кол-во</th><th class="num">Масса, т</th><th>Откуда</th><th>Куда</th><th>Кран</th><th>Сотрудник</th><th></th></tr></thead><tbody>' +
-      (slice.length ? slice.map(rowOp).join("") : '<tr><td colspan="10" class="empty">Ничего не найдено. Измените фильтры или добавьте операцию.</td></tr>') +
-      "</tbody></table></div>" +
-      '<div class="pager"><span>Стр. ' + state.page + " из " + pages + '</span><div class="spacer"></div>' +
-      '<button class="btn btn-ghost btn-sm" type="button" data-action="prev"' + (state.page <= 1 ? " disabled" : "") + ">Назад</button>" +
-      '<button class="btn btn-ghost btn-sm" type="button" data-action="next"' + (state.page >= pages ? " disabled" : "") + ">Вперёд</button>" +
-      "</div></div></div>";
-  };
-
-  function rowOp(o) {
-    var from = addrKey(o.ft, o.fr, o.fc) || "—";
-    var to = addrKey(o.tt, o.tr, o.tc) || "—";
-    return "<tr><td>" + fmtDate(o.date) + "</td><td>" + tagType(o.type) + "</td><td>" + esc(o.size) +
-      '</td><td class="num">' + fmtInt(o.qty) + '</td><td class="num">' + fmtNum(opMassT(o)) + "</td><td>" + esc(from) + "</td><td>" + esc(to) +
-      "</td><td>" + esc(o.crane || "—") + "</td><td>" + esc(o.emp || "—") + "</td>" +
-      '<td class="table-actions"><button class="btn btn-ghost btn-sm" type="button" data-op="' + o.id + '">Изменить</button>' +
-      (isAdmin() ? '<button class="btn btn-danger btn-sm" type="button" data-del="' + o.id + '">Удалить</button>' : "") + "</td></tr>";
-  }
-
-  bind.registry = function (host) {
-    function apply() {
-      state.reg.from = host.querySelector("#rFrom").value;
-      state.reg.to = host.querySelector("#rTo").value;
-      state.reg.type = host.querySelector("#rType").value;
-      state.reg.q = host.querySelector("#rQ").value;
-      state.page = 1; render();
-    }
-    ["#rFrom", "#rTo", "#rType"].forEach(function (s) { host.querySelector(s).addEventListener("change", apply); });
-    var q = host.querySelector("#rQ");
-    var tmr = null;
-    q.addEventListener("input", function () { clearTimeout(tmr); tmr = setTimeout(apply, 220); });
-    host.querySelector('[data-action="reset"]').addEventListener("click", function () {
-      state.reg = { from: "2026-01-01", to: todayISO(), type: "", q: "" }; state.page = 1; render();
-    });
-    host.querySelector('[data-action="add"]').addEventListener("click", function () { openOpModal(null); });
-    var prev = host.querySelector('[data-action="prev"]'), next = host.querySelector('[data-action="next"]');
-    prev && prev.addEventListener("click", function () { if (state.page > 1) { state.page--; render(); } });
-    next && next.addEventListener("click", function () { state.page++; render(); });
-  };
-
-  /* ---------- остатки ---------- */
-  views.stock = function () {
-    var b = balances();
-    var rows = addrList().map(function (a) {
-      var v = b[a.code] || { qty: 0, mass: 0 };
-      return { code: a.code, t: a.t, r: a.r, c: a.c, qty: v.qty, mass: v.mass };
-    }).filter(function (r) { return r.qty !== 0 || r.t === "Т1"; });
-    var tot = stockTotals();
-    var bySize = {};
-    store.ops.forEach(function (o) {
-      var sign = o.type === "Приход" ? 1 : o.type === "Расход" ? -1 : 0;
-      if (!sign) return;
-      bySize[o.size] = (bySize[o.size] || 0) + o.qty * sign;
-    });
-    var sizes = Object.keys(bySize).sort(function (a, b2) { return bySize[b2] - bySize[a]; });
-
-    return '<div class="page-head"><div><h2>Остатки по адресам</h2><p>Считается из реестра: приход и приёмка «+», выдача и отправка «−». Перемещения внутри склада остаток не меняют.</p></div></div>' +
-      '<div class="grid kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">' +
-      kpi("Всего на складе, шт", fmtInt(tot.qty), "по всем адресам") +
-      kpi("Масса, т", fmtNum(tot.mass), "по массе 1 м") +
-      kpi("Адресов с трубами", fmtInt(rows.filter(function (r) { return r.qty > 0; }).length), "из " + addrList().length) + "</div>" +
-
-      '<div class="two-col">' +
-      '<div class="card"><div class="card-head"><h3>По адресам</h3><div class="spacer"></div><span class="chip gray">' + fmtInt(rows.length) + ' строк</span></div>' +
-      '<div class="card-body tight"><div class="table-wrap" style="max-height:520px"><table class="table"><thead><tr><th>Адрес</th><th class="num">Остаток, шт</th><th class="num">Масса, т</th><th>Статус</th></tr></thead><tbody>' +
-      rows.sort(function (a, c) { return c.qty - a.qty; }).map(function (r) {
-        var st = r.qty < 0 ? '<span class="tag tag-out">Отрицательный</span>' : r.qty === 0 ? '<span class="tag tag-gray">Пусто</span>' : '<span class="tag tag-in">Норма</span>';
-        return "<tr><td>" + esc(r.code) + '</td><td class="num">' + fmtInt(r.qty) + '</td><td class="num">' + fmtNum(r.mass) + "</td><td>" + st + "</td></tr>";
-      }).join("") + "</tbody></table></div></div></div>" +
-
-      '<div class="card"><div class="card-head"><h3>По номенклатуре</h3></div><div class="card-body tight"><div class="table-wrap" style="max-height:520px"><table class="table"><thead><tr><th>Типоразмер</th><th class="num">Остаток, шт</th><th class="num">Масса, т</th></tr></thead><tbody>' +
-      (sizes.length ? sizes.map(function (s) {
-        var c = catBySize(s), m = c ? bySize[s] * c.mass / 1000 : 0;
-        return "<tr><td>" + esc(s) + '</td><td class="num">' + fmtInt(bySize[s]) + '</td><td class="num">' + fmtNum(m) + "</td></tr>";
-      }).join("") : '<tr><td colspan="3" class="empty">Нет остатков</td></tr>') +
-      "</tbody></table></div></div></div></div>";
-  };
-
-  /* ---------- схема ---------- */
-  views.map = function () {
-    var b = balances();
-    var tabs = store.refs.territories.map(function (t) {
-      return '<button class="tab' + (state.mapTerritory === t ? " active" : "") + '" type="button" data-terr="' + esc(t) + '">' + esc(t) + "</button>";
-    }).join("");
-    var body = "";
-    if (state.mapTerritory === "Цех") {
-      var v = b["Цех"] || { qty: 0, mass: 0 };
-      body = '<div class="map-grid" style="grid-template-columns:repeat(2,minmax(140px,1fr))">' +
-        '<div class="cell-box ' + cellClass(v.qty) + '"><span class="code">Цех</span><span class="qty">' + fmtInt(v.qty) + '</span><span class="unit">шт · ' + fmtNum(v.mass) + " т</span></div></div>";
-    } else {
-      var boxes = "";
-      store.refs.cells.forEach(function (c) {
-        store.refs.racks.forEach(function (r) {
-          var code = state.mapTerritory + "/" + r + "/" + c;
-          var qty = (b[code] || {}).qty || 0;
-          boxes += '<div class="cell-box ' + cellClass(qty) + '" title="' + esc(code) + '"><span class="code">' + r + " · " + c + '</span><span class="qty">' + fmtInt(qty) + '</span><span class="unit">шт</span></div>';
-        });
-      });
-      body = '<div class="map-grid">' + boxes + "</div>";
-    }
-    var tot = stockTotals();
-    return '<div class="page-head"><div><h2>Схема адресного хранения</h2><p>Живая карта: в каждой ячейке — фактический остаток по данным реестра. Нажмите на территорию, чтобы переключиться.</p></div></div>' +
-      '<div class="card"><div class="card-head"><h3>Территория ' + esc(state.mapTerritory) + '</h3><div class="spacer"></div><span class="chip">' + fmtInt(tot.qty) + " шт всего · " + fmtNum(tot.mass) + ' т</span></div>' +
-      '<div class="card-body"><div class="tabs">' + tabs + "</div>" + body +
-      '<div class="legend"><span><i style="background:#fbfcfd;border:1px solid #d7dee8"></i>пусто</span><span><i style="background:#eaf6ee;border:1px solid #bfe3cb"></i>до 50 шт</span><span><i style="background:#fff8e1;border:1px solid #f0dc9a"></i>50–200 шт</span><span><i style="background:#e8f0fb;border:1px solid #bcd2ef"></i>более 200 шт</span></div>' +
-      "</div></div>";
-  };
-  function cellClass(q) { return q <= 0 ? "zero" : q <= 50 ? "low" : q <= 200 ? "mid" : "high"; }
-  bind.map = function (host) {
-    host.querySelectorAll("[data-terr]").forEach(function (b) {
-      b.addEventListener("click", function () { state.mapTerritory = b.getAttribute("data-terr"); render(); });
-    });
-  };
-
-  /* ---------- отчёты ---------- */
-  views.reports = function () {
-    var ops = opsInPeriod();
-    var byType = store.refs.types.map(function (t) {
-      var list = ops.filter(function (o) { return o.type === t; });
-      return { t: t, n: list.length, q: list.reduce(function (s, o) { return s + o.qty; }, 0), m: list.reduce(function (s, o) { return s + opMassT(o); }, 0) };
-    });
-    var byTerr = store.refs.territories.map(function (t) {
-      var n = 0;
-      ops.forEach(function (o) { if (addrKey(o.tt, o.tr, o.tc).indexOf(t) === 0) n += o.qty; });
-      return { t: t, q: n };
-    }).sort(function (a, b) { return b.q - a.q; });
-    var maxTerr = byTerr.length ? Math.max.apply(null, byTerr.map(function (x) { return x.q; })) || 1 : 1;
-    var byPlant = store.refs.plants.map(function (p) {
-      var list = ops.filter(function (o) { return o.plant === p && o.type === "Приход"; });
-      return { p: p, n: list.length, q: list.reduce(function (s, o) { return s + o.qty; }, 0) };
-    }).sort(function (a, b) { return b.q - a.q; });
-    var byEmp = {};
-    ops.forEach(function (o) { byEmp[o.emp] = (byEmp[o.emp] || 0) + 1; });
-    var emps = Object.keys(byEmp).sort(function (a, b) { return byEmp[b] - byEmp[a]; });
-    var bySize = {};
-    ops.forEach(function (o) { bySize[o.size] = (bySize[o.size] || 0) + o.qty; });
-    var sizes = Object.keys(bySize).sort(function (a, b) { return bySize[b] - bySize[a]; }).slice(0, 15);
-
-    return '<div class="page-head"><div><h2>Отчёты за период</h2><p>Сводки строятся по реестру. Период задаётся здесь и на «Главной» — это одни и те же значения.</p></div><div class="spacer"></div>' +
-      '<div class="filters"><div class="field"><label for="pFrom">с</label><input class="input" type="date" id="pFrom" value="' + state.period.from + '"></div>' +
-      '<div class="field"><label for="pTo">по</label><input class="input" type="date" id="pTo" value="' + state.period.to + '"></div>' +
-      '<button class="btn btn-ghost btn-sm" type="button" data-action="print">Печать</button></div></div>' +
-
-      '<div class="two-col">' +
-      '<div class="card"><div class="card-head"><h3>1. Операции по типам</h3></div><div class="card-body tight"><table class="table"><thead><tr><th>Тип</th><th class="num">Операций</th><th class="num">Кол-во, шт</th><th class="num">Масса, т</th></tr></thead><tbody>' +
-      byType.map(function (r) {
-        return "<tr><td>" + tagType(r.t) + '</td><td class="num">' + fmtInt(r.n) + '</td><td class="num">' + fmtInt(r.q) + '</td><td class="num">' + fmtNum(r.m) + "</td></tr>";
-      }).join("") + "</tbody></table></div></div>" +
-
-      '<div class="card"><div class="card-head"><h3>2. Приход по территориям</h3></div><div class="card-body"><div class="bars">' +
-      byTerr.map(function (r) {
-        return '<div class="bar-row"><div>' + esc(r.t) + '</div><div class="bar-track"><div class="bar-fill" style="width:' + Math.max(2, Math.round(r.q / maxTerr * 100)) + '%"></div></div><div class="val">' + fmtInt(r.q) + " шт</div></div>";
-      }).join("") + "</div></div></div></div>" +
-
-      '<div class="two-col" style="margin-top:14px">' +
-      '<div class="card"><div class="card-head"><h3>3. Поставщики</h3></div><div class="card-body tight"><table class="table"><thead><tr><th>Завод</th><th class="num">Поставок</th><th class="num">Кол-во, шт</th></tr></thead><tbody>' +
-      byPlant.map(function (r) { return "<tr><td>" + esc(r.p) + '</td><td class="num">' + fmtInt(r.n) + '</td><td class="num">' + fmtInt(r.q) + "</td></tr>"; }).join("") +
-      "</tbody></table></div></div>" +
-
-      '<div class="card"><div class="card-head"><h3>4. Активность сотрудников</h3></div><div class="card-body tight"><table class="table"><thead><tr><th>Сотрудник</th><th class="num">Операций</th></tr></thead><tbody>' +
-      (emps.length ? emps.map(function (e) { return "<tr><td>" + esc(e) + '</td><td class="num">' + fmtInt(byEmp[e]) + "</td></tr>"; }).join("") : '<tr><td colspan="2" class="empty">Нет данных</td></tr>') +
-      "</tbody></table></div></div></div>" +
-
-      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>5. Номенклатура за период</h3><div class="spacer"></div><span class="chip gray">топ-15</span></div><div class="card-body tight">' +
-      '<div class="table-wrap"><table class="table"><thead><tr><th>Типоразмер</th><th class="num">Кол-во, шт</th><th class="num">Масса, т</th></tr></thead><tbody>' +
-      (sizes.length ? sizes.map(function (s) {
-        var c = catBySize(s), m = c ? bySize[s] * c.mass / 1000 : 0;
-        return "<tr><td>" + esc(s) + '</td><td class="num">' + fmtInt(bySize[s]) + '</td><td class="num">' + fmtNum(m) + "</td></tr>";
-      }).join("") : '<tr><td colspan="3" class="empty">Нет данных</td></tr>') +
-      "</tbody></table></div></div></div>";
-  };
-  bind.reports = function (host) {
-    host.querySelector('[data-action="print"]').addEventListener("click", function () { window.print(); });
-    ["pFrom", "pTo"].forEach(function (id) {
-      host.querySelector("#" + id).addEventListener("change", function () {
-        var f = host.querySelector("#pFrom").value, t = host.querySelector("#pTo").value;
-        if (f && t && f > t) { toast("Дата начала позже даты окончания", true); return; }
-        state.period.from = f; state.period.to = t; render();
-      });
-    });
-  };
-
-  /* ---------- поиск ---------- */
-  views.search = function () {
-    var q = state.search.trim().toLowerCase();
-    var res = !q ? [] : store.ops.filter(function (o) {
-      var hay = [o.date, fmtDate(o.date), o.type, o.size, o.plant, o.emp, o.crane, o.note,
-        addrKey(o.ft, o.fr, o.fc), addrKey(o.tt, o.tr, o.tc), String(o.qty)].join(" ").toLowerCase();
-      return hay.indexOf(q) !== -1;
-    }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 100);
-
-    return '<div class="page-head"><div><h2>Поиск по реестру</h2><p>Одно поле для всего: фамилия, завод, типоразмер, адрес, тип операции или примечание.</p></div></div>' +
-      '<div class="card"><div class="card-body"><div class="filters">' +
-      '<div class="field grow"><label for="sQ">Что искать</label><input class="input" id="sQ" placeholder="например: Т1/С1 или НКТ" value="' + esc(state.search) + '"></div>' +
-      "</div></div></div>" +
-      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Результаты</h3><div class="spacer"></div><span class="chip">' + (q ? fmtInt(res.length) + " найдено" : "ожидание запроса") + "</span></div>" +
-      '<div class="card-body tight"><div class="table-wrap"><table class="table"><thead><tr><th>Дата</th><th>Операция</th><th>Типоразмер</th><th class="num">Кол-во</th><th>Откуда</th><th>Куда</th><th>Сотрудник</th><th>Примечание</th></tr></thead><tbody>' +
-      (!q ? '<tr><td colspan="8" class="empty">Введите запрос — поиск идёт по всем полям сразу.</td></tr>' :
-        res.length ? res.map(function (o) {
-          return "<tr><td>" + fmtDate(o.date) + "</td><td>" + tagType(o.type) + "</td><td>" + esc(o.size) + '</td><td class="num">' + fmtInt(o.qty) +
-            "</td><td>" + esc(addrKey(o.ft, o.fr, o.fc) || "—") + "</td><td>" + esc(addrKey(o.tt, o.tr, o.tc) || "—") +
-            "</td><td>" + esc(o.emp || "—") + "</td><td>" + esc(o.note || "") + "</td></tr>";
-        }).join("") : '<tr><td colspan="8" class="empty">Ничего не найдено</td></tr>') +
-      "</tbody></table></div></div></div>";
-  };
-  bind.search = function (host) {
-    var input = host.querySelector("#sQ"), tmr = null;
-    input.addEventListener("input", function () {
-      clearTimeout(tmr);
-      tmr = setTimeout(function () {
-        state.search = input.value; render();
-        var el = document.getElementById("sQ");
-        el.focus(); el.setSelectionRange(el.value.length, el.value.length);
-      }, 200);
-    });
-    input.focus();
-  };
-
-  /* ---------- проверки ---------- */
-  views.checks = function () {
-    var b = balances();
-    var errDate = store.ops.filter(function (o) { return !o.date; }).length;
-    var errQty = store.ops.filter(function (o) { return !(o.qty > 0); }).length;
-    var errSrc = store.ops.filter(function (o) { return o.type !== "Приход" && !addrKey(o.ft, o.fr, o.fc); }).length;
-    var errDst = store.ops.filter(function (o) { return o.type !== "Расход" && !addrKey(o.tt, o.tr, o.tc); }).length;
-    var seen = {}, dup = 0;
-    store.ops.forEach(function (o) {
-      var k = [o.date, o.type, o.size, o.qty].join("|");
-      if (seen[k]) dup++; else seen[k] = 1;
-    });
-    var neg = Object.keys(b).filter(function (k) { return b[k].qty < 0; });
-    var inQty = store.ops.filter(function (o) { return o.type === "Приход"; }).reduce(function (s, o) { return s + o.qty; }, 0);
-    var outQty = store.ops.filter(function (o) { return o.type === "Расход"; }).reduce(function (s, o) { return s + o.qty; }, 0);
-    var tot = stockTotals();
-    var diff = Math.round((inQty - outQty - tot.qty) * 1000) / 1000;
-
-    function row(name, value, norm, ok) {
-      return '<div class="check-row"><div>' + name + '</div><div class="mono">' + value + '</div><div class="muted">' + norm +
-        '</div><div><span class="status ' + (ok ? "ok" : "bad") + '">' + (ok ? "ОК" : "Проверить") + "</span></div></div>";
-    }
-
-    return '<div class="page-head"><div><h2>Контроль данных</h2><p>Автоматическая проверка реестра и остатков. Красный статус означает, что данные нужно исправить.</p></div></div>' +
-      '<div class="card"><div class="card-head"><h3>Показатели</h3><div class="spacer"></div><span class="chip">' + fmtInt(store.ops.length) + ' операций</span></div><div class="card-body">' +
-      row("Операций в реестре", fmtInt(store.ops.length), "справочно", true) +
-      row("Строк без даты", fmtInt(errDate), "0", errDate === 0) +
-      row("Строк с количеством ≤ 0", fmtInt(errQty), "0", errQty === 0) +
-      row("Строк без адреса источника", fmtInt(errSrc), "0", errSrc === 0) +
-      row("Строк без адреса приёмки", fmtInt(errDst), "0", errDst === 0) +
-      row("Повторных операций", fmtInt(dup), "0", dup === 0) +
-      row("Адресов с отрицательным остатком", fmtInt(neg.length), "0", neg.length === 0) +
-      row("Приход всего, шт", fmtInt(inQty), "справочно", true) +
-      row("Расход всего, шт", fmtInt(outQty), "справочно", true) +
-      row("Остаток по складу, шт", fmtInt(tot.qty), "справочно", true) +
-      row("Расхождение (приход − расход − остаток)", String(diff), "0", Math.abs(diff) < 0.01) +
-      "</div></div>" +
-      (neg.length ? '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Отрицательные остатки</h3></div><div class="card-body tight"><table class="table"><thead><tr><th>Адрес</th><th class="num">Остаток</th></tr></thead><tbody>' +
-        neg.map(function (k) { return "<tr><td>" + esc(k) + '</td><td class="num">' + fmtInt(b[k].qty) + "</td></tr>"; }).join("") + "</tbody></table></div></div>" : "");
-  };
-
-  /* ---------- справочники ---------- */
-  views.refs = function () {
-    var tabs = [["catalog", "Номенклатура"], ["plants", "Заводы"], ["cranes", "Краны"], ["territories", "Территории"], ["racks", "Стеллажи"], ["cells", "Ячейки"]];
-    var body = "";
-    if (state.refTab === "catalog") {
-      body = '<div class="card-body tight"><div class="table-wrap" style="max-height:520px"><table class="table"><thead><tr><th>Типоразмер</th><th>Тип</th><th class="num">Ø</th><th class="num">Стенка</th><th class="num">Масса 1 м</th><th>ГОСТ</th><th></th></tr></thead><tbody>' +
-        store.catalog.map(function (c) {
-          return "<tr><td>" + esc(c.size) + "</td><td>" + esc(c.type) + '</td><td class="num">' + c.d + '</td><td class="num">' + c.w + '</td><td class="num">' + fmtNum(c.mass) + "</td><td>" + esc(c.gost) +
-            '</td><td class="table-actions"><button class="btn btn-danger btn-sm" type="button" data-delcat="' + esc(c.id) + '">Удалить</button></td></tr>';
-        }).join("") + "</tbody></table></div></div>";
-    } else {
-      var list = store.refs[state.refTab] || [];
-      body = '<div class="card-body"><div class="filters" style="margin-bottom:12px"><div class="field grow"><label for="refNew">Добавить значение</label><input class="input" id="refNew" placeholder="Новое значение"></div>' +
-        '<button class="btn btn-primary btn-sm" type="button" data-action="add-ref">Добавить</button></div>' +
-        '<div class="table-wrap"><table class="table"><thead><tr><th>Значение</th><th></th></tr></thead><tbody>' +
-        (list.length ? list.map(function (v, i) {
-          return "<tr><td>" + esc(v) + '</td><td class="table-actions"><button class="btn btn-danger btn-sm" type="button" data-refdel="' + i + '">Удалить</button></td></tr>';
-        }).join("") : '<tr><td colspan="2" class="empty">Список пуст</td></tr>') +
-        "</tbody></table></div></div>";
-    }
-    return '<div class="page-head"><div><h2>Справочники (НСИ)</h2><p>Номенклатура и списки, на которые опираются выпадающие поля. Правка доступна только руководителю.</p></div></div>' +
-      '<div class="card"><div class="card-head"><div class="tabs" style="margin:0">' +
-      tabs.map(function (t) { return '<button class="tab' + (state.refTab === t[0] ? " active" : "") + '" type="button" data-reftab="' + t[0] + '">' + t[1] + "</button>"; }).join("") +
-      "</div></div>" + body + "</div>";
-  };
-  bind.refs = function (host) {
-    host.querySelectorAll("[data-reftab]").forEach(function (b) {
-      b.addEventListener("click", function () { state.refTab = b.getAttribute("data-reftab"); render(); });
-    });
-    host.querySelectorAll("[data-delcat]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var id = b.getAttribute("data-delcat");
-        if (!confirm("Удалить типоразмер из справочника? Уже введённые операции сохранятся.")) return;
-        store.catalog = store.catalog.filter(function (c) { return c.id !== id; });
-        persist(); toast("Типоразмер удалён"); render();
-      });
-    });
-    host.querySelectorAll("[data-refdel]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var i = +b.getAttribute("data-refdel");
-        if (!confirm("Удалить значение из списка?")) return;
-        store.refs[state.refTab].splice(i, 1); persist(); toast("Удалено"); render();
-      });
-    });
-    var add = host.querySelector('[data-action="add-ref"]');
-    add && add.addEventListener("click", function () {
-      var v = host.querySelector("#refNew").value.trim();
-      if (!v) { toast("Введите значение", true); return; }
-      if (store.refs[state.refTab].indexOf(v) !== -1) { toast("Такое значение уже есть", true); return; }
-      store.refs[state.refTab].push(v); persist(); toast("Добавлено"); render();
-    });
-  };
-
-  /* ---------- сотрудники ---------- */
-  views.staff = function () {
-    return '<div class="page-head"><div><h2>Сотрудники и доступ</h2><p>Табельный номер — это пароль для входа. Роль «Руководитель» даёт доступ к НСИ, проверкам и удалению операций.</p></div><div class="spacer"></div>' +
-      '<button class="btn btn-primary" type="button" data-action="add-emp">+ Сотрудник</button></div>' +
-      '<div class="card"><div class="card-body tight"><div class="table-wrap"><table class="table"><thead><tr><th>ФИО</th><th>Табельный</th><th>Должность</th><th>Роль</th><th>Статус</th><th></th></tr></thead><tbody>' +
-      store.employees.map(function (e) {
-        return "<tr><td>" + esc(e.fio) + '</td><td class="mono">' + esc(e.tab) + "</td><td>" + esc(e.pos) + "</td><td>" + esc(e.role) +
-          '</td><td><span class="tag ' + (e.active === false ? "tag-gray" : "tag-in") + '">' + (e.active === false ? "Отключён" : "Активен") + "</span></td>" +
-          '<td class="table-actions"><button class="btn btn-ghost btn-sm" type="button" data-emp="' + e.id + '">Изменить</button>' +
-          (e.id === session.id ? "" : '<button class="btn btn-danger btn-sm" type="button" data-empdel="' + e.id + '">Удалить</button>') + "</td></tr>";
-      }).join("") + "</tbody></table></div></div></div>";
-  };
-  bind.staff = function (host) {
-    host.querySelector('[data-action="add-emp"]').addEventListener("click", function () { openEmpModal(null); });
-    host.querySelectorAll("[data-emp]").forEach(function (b) {
-      b.addEventListener("click", function () { openEmpModal(store.employees.filter(function (e) { return e.id === b.getAttribute("data-emp"); })[0]); });
-    });
-    host.querySelectorAll("[data-empdel]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (!confirm("Удалить сотрудника?")) return;
-        store.employees = store.employees.filter(function (e) { return e.id !== b.getAttribute("data-empdel"); });
-        persist(); toast("Сотрудник удалён"); render();
-      });
-    });
-  };
-
-  /* ---------- инструкция ---------- */
-  views.help = function () {
-    return '<div class="page-head"><div><h2>Инструкция</h2><p>Короткий регламент работы с системой.</p></div></div>' +
-      '<div class="card"><div class="card-body"><dl class="kv">' +
-      '<dt>Вход</dt><dd>Выберите своё ФИО и введите табельный номер — он же пароль. Все операции подписываются вами.</dd>' +
-      '<dt>Новая операция</dt><dd>Кнопка «+ Операция». Тип операции определяет, какие адреса нужны: приход — только «куда», расход — только «откуда», перемещение — оба.</dd>' +
-      '<dt>Труба</dt><dd>Типоразмер выбирается из справочника; диаметр, стенка и масса подставляются автоматически. Масса операции считается по массе 1 метра.</dd>' +
-      '<dt>Остатки</dt><dd>Пересчитываются из реестра автоматически. Перемещение внутри склада остаток не меняет.</dd>' +
-      '<dt>Схема</dt><dd>Карта ячеек: 10 территорий × 5 стеллажей × 10 ячеек плюс цех. Цвет показывает заполненность.</dd>' +
-      '<dt>Проверки</dt><dd>Раздел для руководителя: дубли, пустые адреса, отрицательные остатки и сходимость «приход − расход = остаток».</dd>' +
-      '<dt>Резервная копия</dt><dd>Кнопка «Экспорт» сохраняет все данные в JSON. Восстановление — «Импорт». Делайте копию перед сменой.</dd>' +
-      '<dt>Печать</dt><dd>Кнопка «Печать» в отчётах; реестр и отчёты подготовлены к альбомной ориентации.</dd>' +
-      '<dt>Безопасность</dt><dd>Данные хранятся в браузере на этом компьютере. Для общей работы нескольких кладовщиков нужен сервер — см. README.</dd>' +
-      '</dl></div></div>';
-  };
 
   /* ================= модальные окна ================= */
-  var modal = document.getElementById("modal");
-  function openModal(title, body, foot) {
-    document.getElementById("modalTitle").textContent = title;
-    document.getElementById("modalBody").innerHTML = body;
-    document.getElementById("modalFoot").innerHTML = foot;
-    modal.classList.remove("hidden");
-    var first = modal.querySelector("input,select,textarea");
-    first && first.focus();
+  function openModal(html, cls) {
+    el("modalRoot").innerHTML = '<div class="modal-back" data-close="1"><div class="modal ' + (cls || "") + '" role="dialog">' + html + "</div></div>";
   }
-  function closeModal() { modal.classList.add("hidden"); }
-  modal.addEventListener("click", function (e) {
-    if (e.target.closest("[data-close]") || e.target.classList.contains("modal-backdrop")) closeModal();
-  });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+  function closeModal() { el("modalRoot").innerHTML = ""; }
 
-  function options(list, val, emptyLabel) {
-    return (emptyLabel ? '<option value="">' + emptyLabel + "</option>" : "") + list.map(function (v) {
-      return '<option value="' + esc(v) + '"' + (v === val ? " selected" : "") + ">" + esc(v) + "</option>";
+  /* ================= расчёты для экранов ================= */
+  function capacityOf(z) { return z.capacity || store.settings.cellCapacity || 120; }
+  function capacityTotal() {
+    var s = 0;
+    store.zones.forEach(function (z) { s += z.cells * capacityOf(z); });
+    return s;
+  }
+  function occupiedTotal(filter) {
+    var m = occupancyMap(filter), s = 0;
+    Object.keys(m).forEach(function (k) { s += Math.max(0, m[k]); });
+    return s;
+  }
+  function pct(a, b) { return b > 0 ? Math.round(a / b * 100) : 0; }
+  function kpiCard(cls, ic, title, value, sub) {
+    return '<div class="kpi ' + cls + '"><div class="top"><span class="ico">' + icon(ic) + "</span>" + esc(title) + "</div>" +
+      "<b>" + value + "</b><div class=\"sub\">" + esc(sub) + "</div></div>";
+  }
+
+  /* ================= главная ================= */
+  function viewDashboard() {
+    var rows = stockList();
+    var all = totals(rows);
+    var prep = totals(rows.filter(function (r) { return r.status === "prepared"; }));
+    var raw = totals(rows.filter(function (r) { return r.status !== "prepared"; }));
+    var cap = capacityTotal(), occ = occupiedTotal();
+    var byUnit = store.orgUnits.map(function (u) {
+      return { u: u, t: totals(rows.filter(function (r) { return r.orgUnitId === u.id; })) };
+    }).sort(function (a, b) { return b.t.meters - a.t.meters; });
+    var maxM = 0;
+    byUnit.forEach(function (x) { if (x.t.meters > maxM) maxM = x.t.meters; });
+    var bars = byUnit.map(function (x) {
+      var w = maxM ? (x.t.meters / maxM * 100).toFixed(1) : 0;
+      return '<div class="bar-row"><span title="' + esc(unitLabel(x.u)) + '">' + esc(x.u.code) + "</span>" +
+        '<div class="bar-track"><i class="bar-fill" data-w="' + w + '"></i></div>' +
+        "<b>" + fmtLen(x.t.meters) + " · " + fmtTon(x.t.kg) + "</b></div>";
+    }).join("");
+
+    var totalM = prep.meters + raw.meters;
+    var prepPct = pct(prep.meters, totalM);
+    var R = 52, C = 2 * Math.PI * R;
+    var dash = (C * (totalM ? prep.meters / totalM : 0)).toFixed(1) + " " + C.toFixed(1);
+    var donut = '<div class="donut-wrap"><svg class="donut" viewBox="0 0 120 120">' +
+      '<circle cx="60" cy="60" r="52" fill="none" stroke="#eef2f8" stroke-width="14"></circle>' +
+      '<circle cx="60" cy="60" r="52" fill="none" stroke="#16a34a" stroke-width="14" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="' + dash + '"></circle>' +
+      '<text x="60" y="57" text-anchor="middle" font-size="21" font-weight="700" fill="#0d1b2a">' + prepPct + '%</text>' +
+      '<text x="60" y="74" text-anchor="middle" font-size="8.5" fill="#64748b">подготовлено</text></svg>' +
+      '<div class="donut-legend"><div><i style="background:#16a34a"></i>Подготовленная — <b>' + fmtLen(prep.meters) + "</b></div>" +
+      '<div><i style="background:#f59e0b"></i>Не подготовленная — <b>' + fmtLen(raw.meters) + "</b></div>" +
+      '<div><i style="background:#e2e8f2"></i>Всего — <b>' + fmtLen(totalM) + "</b></div></div></div>";
+
+    var recent = store.ops.slice().sort(function (a, b) {
+      return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.created < b.created ? 1 : -1);
+    }).slice(0, 6);
+
+    var recentRows = recent.map(function (o) {
+      var s = sizeById(o.sizeId);
+      return "<tr><td>" + fmtDate(o.date) + "</td><td>" + typeBadge(o.type) + "</td><td>" +
+        esc((unitById(o.orgUnitId) || {}).code || "—") + "</td><td>" + esc(s ? s.label : o.sizeId) +
+        '<div class="sub">' + esc(addrText(o.to.length ? o.to : o.from)) + "</div></td>" +
+        '<td class="num">' + fmtLen(o.meters) + "</td></tr>";
+    }).join("");
+
+    var occPct = pct(occ, cap);
+    return '<div class="grid kpis">' +
+      kpiCard("", "pipe", "Всего в наличии", fmtLen(all.meters), fmtInt(all.qty) + " труб · " + fmtTon(all.kg)) +
+      kpiCard("cyan", "box", "Вес металла", fmtTon(all.kg), "по массе 1 п.м. ГОСТ") +
+      kpiCard("violet", "chart", "Средняя длина", all.qty ? fmt1(avgLength(all)) + " м" : "—", "метров на одну трубу") +
+      kpiCard("green", "check", "Подготовлено", prepPct + "%", fmtLen(prep.meters) + " готовы к отгрузке") +
+      "</div>" +
+      '<div class="cols-2 mt16"><div class="card"><div class="card-head"><div><h3>Остатки по оргединицам</h3><div class="sub">метраж и вес на текущий момент</div></div>' +
+      '<button class="btn ghost sm right" data-nav="stock">Подробнее</button></div><div class="card-body"><div class="bars">' +
+      (bars || '<div class="empty">Пока нет остатков</div>') + "</div></div></div>" +
+      '<div class="card"><div class="card-head"><div><h3>Подготовка труб</h3><div class="sub">доля готовой продукции</div></div></div><div class="card-body">' + donut + "</div></div></div>" +
+      '<div class="cols-2 mt16"><div class="card"><div class="card-head"><div><h3>Последние операции</h3><div class="sub">движение за последние дни</div></div>' +
+      '<button class="btn ghost sm right" data-nav="registry">Весь реестр</button></div><div class="table-wrap"><table class="tbl"><thead><tr><th>Дата</th><th>Операция</th><th>Орг. ед.</th><th>Труба</th><th class="num">Метров</th></tr></thead><tbody>' +
+      (recentRows || '<tr><td colspan="5"><div class="empty">Операций пока нет</div></td></tr>') + "</tbody></table></div></div>" +
+      '<div class="card"><div class="card-head"><h3>Быстрые действия</h3></div><div class="card-body">' +
+      '<div style="display:grid;gap:10px">' +
+      (can("op.create") ? '<button class="btn primary block" data-action="new-op">' + icon("plus") + "Новая операция</button>" : "") +
+      '<button class="btn ghost block" data-nav="map">' + icon("map") + "Открыть схему склада</button>" +
+      '<button class="btn ghost block" data-nav="reports">' + icon("chart") + "Сформировать отчёт</button>" +
+      "</div>" +
+      '<div class="section-title"><h2>Заполненность</h2><span class="badge ' + (occPct > 80 ? "bad" : occPct > 50 ? "warn" : "ok") + '">' + occPct + "%</span></div>" +
+      '<div class="progress"><i style="width:' + Math.min(100, occPct) + '%"></i></div>' +
+      '<p class="hint" style="margin-top:8px">' + fmtLen(occ) + " из " + fmtLen(cap) + " · свободно " + fmtLen(Math.max(0, cap - occ)) + "</p>" +
+      "</div></div></div>";
+  }
+
+  /* ================= реестр ================= */
+  function unitOptions(sel, emptyLabel) {
+    return '<option value="">' + esc(emptyLabel || "Все оргединицы") + "</option>" + store.orgUnits.map(function (u) {
+      return '<option value="' + u.id + '"' + (u.id === sel ? " selected" : "") + ">" + esc(unitLabel(u)) + "</option>";
     }).join("");
   }
-
-  function openOpModal(op) {
-    var isEdit = !!op;
-    op = op || { id: "", date: todayISO(), type: "Приход", size: "", plant: "", qty: "", ft: "", fr: "", fc: "", tt: "", tr: "", tc: "", crane: "", emp: session.fio, note: "" };
-    var sizeOpts = '<option value="">— выберите типоразмер —</option>' + store.catalog.map(function (c) {
-      return '<option value="' + esc(c.size) + '"' + (c.size === op.size ? " selected" : "") + ">" + esc(c.size) + "</option>";
+  function statusOptions(sel) {
+    return '<option value="">Все статусы</option><option value="raw"' + (sel === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (sel === "prepared" ? " selected" : "") + ">Подготовленная</option>";
+  }
+  function typeOptions(sel) {
+    return '<option value="">Все операции</option>' + ["in", "move", "to_shop", "from_shop", "ship", "writeoff"].map(function (t) {
+      return '<option value="' + t + '"' + (t === sel ? " selected" : "") + ">" + typeLabel(t) + "</option>";
     }).join("");
-    var body = '<form id="opForm" class="form-grid" autocomplete="off">' +
-      '<div class="field"><label for="fDate">Дата</label><input class="input" type="date" id="fDate" value="' + esc(op.date) + '" required></div>' +
-      '<div class="field"><label for="fType">Тип операции</label><select class="input" id="fType">' + options(store.refs.types, op.type) + "</select></div>" +
-      '<div class="form-section">Труба</div>' +
-      '<div class="field full"><label for="fSize">Типоразмер</label><select class="input" id="fSize" required>' + sizeOpts + "</select></div>" +
-      '<div class="field"><label for="fPlant">Завод-изготовитель</label><select class="input" id="fPlant">' + options(store.refs.plants, op.plant, "—") + "</select></div>" +
-      '<div class="field"><label for="fQty">Количество, шт</label><input class="input" type="number" id="fQty" min="1" step="1" value="' + esc(op.qty) + '" required></div>' +
-      '<div class="field"><label for="fSpec">Параметры (авто)</label><input class="input" id="fSpec" value="" readonly></div>' +
-      '<div class="field"><label for="fMass">Масса операции, т</label><input class="input" id="fMass" value="" readonly></div>' +
-      '<div class="form-section">Откуда</div>' +
-      '<div class="field"><label for="fFT">Территория</label><select class="input" id="fFT">' + options(store.refs.territories, op.ft, "—") + "</select></div>" +
-      '<div class="field"><label for="fFR">Стеллаж</label><select class="input" id="fFR">' + options(store.refs.racks, op.fr, "—") + "</select></div>" +
-      '<div class="field"><label for="fFC">Ячейка</label><select class="input" id="fFC">' + options(store.refs.cells, op.fc, "—") + "</select></div>" +
-      '<div class="form-section">Куда</div>' +
-      '<div class="field"><label for="fTT">Территория</label><select class="input" id="fTT">' + options(store.refs.territories, op.tt, "—") + "</select></div>" +
-      '<div class="field"><label for="fTR">Стеллаж</label><select class="input" id="fTR">' + options(store.refs.racks, op.tr, "—") + "</select></div>" +
-      '<div class="field"><label for="fTC">Ячейка</label><select class="input" id="fTC">' + options(store.refs.cells, op.tc, "—") + "</select></div>" +
-      '<div class="field"><label for="fCrane">Кран</label><select class="input" id="fCrane">' + options(store.refs.cranes, op.crane, "—") + "</select></div>" +
-      '<div class="field full"><label for="fNote">Примечание</label><input class="input" id="fNote" maxlength="200" value="' + esc(op.note) + '"></div>' +
-      '<div id="opError" class="modal-error full hidden" role="alert"></div>' +
-      "</form>";
-    var foot = '<button class="btn btn-ghost" type="button" data-close="1">Отмена</button>' +
-      '<button class="btn btn-primary" type="button" id="saveOp">' + (isEdit ? "Сохранить" : "Добавить операцию") + "</button>";
-    openModal(isEdit ? "Изменить операцию" : "Новая операция", body, foot);
-
-    var f = {
-      date: document.getElementById("fDate"), type: document.getElementById("fType"), size: document.getElementById("fSize"),
-      plant: document.getElementById("fPlant"), qty: document.getElementById("fQty"), spec: document.getElementById("fSpec"),
-      mass: document.getElementById("fMass"), ft: document.getElementById("fFT"), fr: document.getElementById("fFR"), fc: document.getElementById("fFC"),
-      tt: document.getElementById("fTT"), tr: document.getElementById("fTR"), tc: document.getElementById("fTC"),
-      crane: document.getElementById("fCrane"), note: document.getElementById("fNote")
-    };
-    function syncSpec() {
-      var c = catBySize(f.size.value), q = parseInt(f.qty.value, 10) || 0;
-      f.spec.value = c ? "Ø" + c.d + " × " + c.w + " мм · " + fmtNum(c.mass) + " кг/м" : "—";
-      f.mass.value = c && q ? fmtNum(q * c.mass / 1000) : "—";
-    }
-    function syncAddr() {
-      var t = f.type.value;
-      var src = t !== "Приход", dst = t !== "Расход";
-      [f.ft, f.fr, f.fc].forEach(function (el) { el.disabled = !src; });
-      [f.tt, f.tr, f.tc].forEach(function (el) { el.disabled = !dst; });
-      if (!src) { f.ft.value = ""; f.fr.value = ""; f.fc.value = ""; }
-      if (!dst) { f.tt.value = ""; f.tr.value = ""; f.tc.value = ""; }
-      [f.fr, f.fc].forEach(function (el) { el.disabled = !src || f.ft.value === "Цех"; });
-      [f.tr, f.tc].forEach(function (el) { el.disabled = !dst || f.tt.value === "Цех"; });
-      if (f.ft.value === "Цех") { f.fr.value = ""; f.fc.value = ""; }
-      if (f.tt.value === "Цех") { f.tr.value = ""; f.tc.value = ""; }
-    }
-    f.size.addEventListener("change", syncSpec);
-    f.qty.addEventListener("input", syncSpec);
-    f.type.addEventListener("change", syncAddr);
-    f.ft.addEventListener("change", syncAddr);
-    f.tt.addEventListener("change", syncAddr);
-    syncSpec(); syncAddr();
-
-    document.getElementById("saveOp").addEventListener("click", function () {
-      var err = document.getElementById("opError");
-      var data = {
-        id: op.id || uid(), date: f.date.value, type: f.type.value, size: f.size.value,
-        plant: f.plant.value, qty: parseInt(f.qty.value, 10) || 0,
-        ft: f.ft.value, fr: f.fr.value, fc: f.fc.value,
-        tt: f.tt.value, tr: f.tr.value, tc: f.tc.value,
-        crane: f.crane.value, emp: op.emp || session.fio, note: f.note.value.trim()
-      };
-      var errs = validateOp(data);
-      if (errs.length) { err.textContent = errs[0]; err.classList.remove("hidden"); return; }
-      if (isEdit) {
-        store.ops = store.ops.map(function (o) { return o.id === op.id ? data : o; });
-      } else {
-        data.emp = session.fio;
-        store.ops.push(data);
+  }
+  function regRow(o) {
+    var s = sizeById(o.sizeId);
+    var kg = o.meters * (s ? s.kgm : 0);
+    return "<tr><td>" + fmtDate(o.date) + "</td><td>" + typeBadge(o.type) + "</td><td>" +
+      esc((unitById(o.orgUnitId) || {}).code || "—") + "</td><td><span class=\"strong\">" + esc(s ? s.label : o.sizeId) +
+      '</span><div class="sub">' + esc(s ? s.gost : "") + "</div></td>" +
+      '<td class="num">' + fmtLen(o.meters) + '<div class="sub">' + fmt1(kg / 1000) + " т</div></td>" +
+      '<td class="num">' + fmtInt(o.qty) + "</td>" +
+      "<td>" + statusBadge(o.status) + "</td>" +
+      "<td>" + addrChips(o.from) + "</td><td>" + addrChips(o.to) + "</td>" +
+      "<td>" + esc(o.user) + "</td>" +
+      '<td><div class="actions">' +
+      (can("op.edit") ? '<button class="btn ghost sm" data-action="edit-op" data-id="' + o.id + '">' + icon("edit") + "</button>" : "") +
+      (can("op.delete") ? '<button class="btn danger sm" data-action="del-op" data-id="' + o.id + '">' + icon("trash") + "</button>" : "") +
+      "</div></td></tr>";
+  }
+  function pagerHtml(pages) {
+    if (pages <= 1) return "";
+    var out = '<button data-page="' + (state.page - 1) + '"' + (state.page <= 1 ? " disabled" : "") + ">‹</button>";
+    for (var i = 1; i <= pages; i++) {
+      if (pages > 9 && i > 3 && i < pages - 2 && Math.abs(i - state.page) > 1) {
+        if (i === 4) out += "<span>…</span>";
+        continue;
       }
-      persist(); closeModal(); toast(isEdit ? "Операция обновлена" : "Операция добавлена");
-      state.route = "registry";
+      out += '<button data-page="' + i + '"' + (i === state.page ? ' class="on"' : "") + ">" + i + "</button>";
+    }
+    out += '<button data-page="' + (state.page + 1) + '"' + (state.page >= pages ? " disabled" : "") + ">›</button>";
+    return out;
+  }
+  function viewRegistry() {
+    var ops = opsFiltered();
+    var pages = Math.max(1, Math.ceil(ops.length / PAGE_SIZE));
+    if (state.page > pages) state.page = pages;
+    var slice = ops.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
+    var f = state.reg;
+    return '<div class="toolbar no-print">' +
+      '<div class="search-inline">' + icon("search") + '<input data-reg="q" value="' + esc(f.q) + '" placeholder="Труба, ячейка, сотрудник"></div>' +
+      '<select data-reg="unit" style="max-width:220px">' + unitOptions(f.unit) + "</select>" +
+      '<select data-reg="type" style="max-width:170px">' + typeOptions(f.type) + "</select>" +
+      '<select data-reg="status" style="max-width:190px">' + statusOptions(f.status) + "</select>" +
+      '<input type="date" data-reg="from" value="' + esc(f.from) + '" title="С даты">' +
+      '<input type="date" data-reg="to" value="' + esc(f.to) + '" title="По дату">' +
+      '<div class="grow"></div>' +
+      (can("op.create") ? '<button class="btn primary" data-action="new-op">' + icon("plus") + "Операция</button>" : "") +
+      "</div>" +
+      '<div class="card"><div class="card-head"><div><h3>Все операции</h3><div class="sub">найдено <b id="regCount">' + ops.length + "</b></div></div></div>" +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Дата</th><th>Операция</th><th>Орг. ед.</th><th>Труба</th><th class="num">Метров</th><th class="num">Штук</th><th>Статус</th><th>Откуда</th><th>Куда</th><th>Кто</th><th></th></tr></thead>' +
+      '<tbody id="regBody">' + (slice.length ? slice.map(regRow).join("") : '<tr><td colspan="11"><div class="empty">' + icon("search") + "<b>Ничего не найдено</b>Измените фильтры или добавьте операцию</div></td></tr>") + "</tbody></table></div>" +
+      '<div class="pager" id="regPager">' + pagerHtml(pages) + "</div></div>";
+  }
+  function refreshRegistry() {
+    var body = el("regBody");
+    if (!body) return;
+    var ops = opsFiltered();
+    var pages = Math.max(1, Math.ceil(ops.length / PAGE_SIZE));
+    if (state.page > pages) state.page = pages;
+    var slice = ops.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
+    body.innerHTML = slice.length ? slice.map(regRow).join("") : '<tr><td colspan="11"><div class="empty"><b>Ничего не найдено</b>Измените фильтры</div></td></tr>';
+    var c = el("regCount"); if (c) c.textContent = ops.length;
+    var p = el("regPager"); if (p) p.innerHTML = pagerHtml(pages);
+  }
+
+  /* ================= операция: форма ================= */
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function draftFromOp(op) {
+    var d = clone(op);
+    d.fromZone = op.from && op.from[0] ? op.from[0].zoneId : "";
+    d.fromCells = (op.from || []).map(function (c) { return c.cell; });
+    d.toZone = op.to && op.to[0] ? op.to[0].zoneId : "";
+    d.toCells = (op.to || []).map(function (c) { return c.cell; });
+    return d;
+  }
+  function newDraft() {
+    var firstRack = store.zones.filter(function (z) { return z.type !== "shop"; })[0];
+    return {
+      id: "", date: todayISO(), type: "in", orgUnitId: session.orgUnitId || store.orgUnits[0].id,
+      sizeId: "", meters: 0, qty: 0, status: "raw", fromZone: "", fromCells: [], toZone: firstRack ? firstRack.id : "", toCells: [],
+      plant: "", note: ""
+    };
+  }
+  function zonesFor(type, dir) {
+    var shop = [];
+    var other = [];
+    store.zones.forEach(function (z) { (z.type === "shop" ? shop : other).push(z); });
+    if (dir === "to") return type === "to_shop" ? shop : other;
+    if (dir === "from") return type === "from_shop" ? shop : other;
+    return shop.concat(other);
+  }
+  function zoneOptions(sel, type, dir) {
+    var list = zonesFor(type, dir);
+    return '<option value="">— выберите зону —</option>' + list.map(function (z) {
+      var t = terrById(z.territoryId);
+      return '<option value="' + z.id + '"' + (z.id === sel ? " selected" : "") + ">" + esc((t ? t.name + " · " : "") + z.name) + " · " + zoneTypeLabel(z.type) + "</option>";
+    }).join("");
+  }
+  function cellsPick(zoneId, selected, which) {
+    if (!zoneId) return '<div class="hint">Сначала выберите зону</div>';
+    return '<div class="cells-pick">' + cellsOf(zoneId).map(function (c) {
+      return '<button type="button" class="chip sm' + (selected.indexOf(c) > -1 ? " on" : "") + '" data-cellpick="' + which + '" data-cell="' + esc(c) + '">' + esc(c) + "</button>";
+    }).join("") + "</div>";
+  }
+  function sizeOptions(sel) {
+    var groups = {};
+    store.catalog.forEach(function (s) { (groups[s.type] = groups[s.type] || []).push(s); });
+    return '<option value="">— выберите трубу —</option>' + Object.keys(groups).map(function (t) {
+      return '<optgroup label="' + esc(t) + '">' + groups[t].map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === sel ? " selected" : "") + ">" + esc(s.label) + " · " + s.kgm + " кг/м</option>";
+      }).join("") + "</optgroup>";
+    }).join("");
+  }
+  function opSummaryHtml(d) {
+    var s = sizeById(d.sizeId);
+    var kg = (s ? s.kgm : 0) * (d.meters || 0);
+    var avg = d.qty > 0 ? d.meters / d.qty : 0;
+    return '<div class="op-sum"><div><span>Вес партии</span><b>' + fmtTon(kg) + "</b></div>" +
+      '<div><span>Средняя длина</span><b>' + (avg ? fmt1(avg) + " м" : "—") + "</b></div>" +
+      '<div><span>Труб</span><b>' + fmtInt(d.qty) + "</b></div></div>";
+  }
+  function statusBlock(d) {
+    if (d.type === "move" || d.type === "writeoff") {
+      return '<label class="field"><span>Состояние трубы</span><select id="opStatus"><option value="raw"' + (d.status === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (d.status === "prepared" ? " selected" : "") + ">Подготовленная</option></select></label>";
+    }
+    var txt = d.type === "in" ? "Приход принимается как не подготовленная труба" :
+      d.type === "to_shop" ? "В цех уходит не подготовленная, выходит подготовленная" :
+      d.type === "from_shop" ? "Возврат из цеха — подготовленная труба" :
+      "Отгрузка — только подготовленная труба";
+    return '<div class="note-line">' + esc(txt) + "</div>";
+  }
+  function renderOpModal() {
+    var d = state.opDraft;
+    var title = d.id ? "Изменить операцию" : "Новая операция";
+    var types = [["in", "Приход"], ["move", "Перемещение"], ["to_shop", "В цех"], ["from_shop", "Из цеха"], ["ship", "Отгрузка"], ["writeoff", "Списание"]];
+    var seg = '<div class="seg" style="width:100%">' + types.map(function (t) {
+      return '<button type="button" data-optype="' + t[0] + '" class="' + (d.type === t[0] ? "on" : "") + '">' + t[1] + "</button>";
+    }).join("") + "</div>";
+
+    var fromBlock = d.type === "in" ? "" :
+      '<div class="op-section"><div class="op-section-title">Откуда</div><div class="row">' +
+      '<label class="field"><span>Зона</span><select id="opFromZone">' + zoneOptions(d.fromZone, d.type, "from") + "</select></label>" +
+      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opFromCells">' + cellsPick(d.fromZone, d.fromCells, "from") + "</div></div>" +
+      "</div></div>";
+
+    var toBlock = (d.type === "ship" || d.type === "writeoff") ? "" :
+      '<div class="op-section"><div class="op-section-title">Куда</div><div class="row">' +
+      '<label class="field"><span>Зона</span><select id="opToZone">' + zoneOptions(d.toZone, d.type, "to") + "</select></label>" +
+      '<div class="field"><span>Ячейки (можно несколько)</span><div id="opToCells">' + cellsPick(d.toZone, d.toCells, "to") + "</div></div>" +
+      "</div></div>";
+
+    openModal(
+      '<div class="modal-head"><div><h3>' + title + '</h3><p>Метраж, вес и адреса хранения</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><span>Тип операции</span>' + seg + "</div>" +
+      '<div class="row"><label class="field"><span>Дата</span><input type="date" id="opDate" value="' + esc(d.date) + '"></label>' +
+      '<label class="field"><span>Оргединица</span><select id="opUnit">' + unitOptions(d.orgUnitId, "— выберите —") + "</select></label></div>" +
+      '<label class="field"><span>Труба</span><select id="opSize">' + sizeOptions(d.sizeId) + "</select></label>" +
+      '<div class="row3"><label class="field"><span>Метров</span><input type="number" id="opMeters" min="0" step="1" value="' + (d.meters || "") + '"></label>' +
+      '<label class="field"><span>Штук</span><input type="number" id="opQty" min="0" step="1" value="' + (d.qty || "") + '"></label>' +
+      '<div class="field"><span>Расчёт</span><div id="opSummary">' + opSummaryHtml(d) + "</div></div></div>" +
+      statusBlock(d) + fromBlock + toBlock +
+      '<div class="row"><label class="field"><span>Завод</span><input type="text" id="opPlant" value="' + esc(d.plant) + '" placeholder="ТМК, ВТЗ, СинТЗ…"></label>' +
+      '<label class="field"><span>Примечание</span><input type="text" id="opNote" value="' + esc(d.note) + '" placeholder="Комментарий"></label></div>' +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button>' +
+      '<button class="btn primary" data-action="save-op">' + icon("check") + "Сохранить</button></div>"
+    );
+  }
+  function openOperation(id) {
+    if (id) {
+      var op = store.ops.filter(function (o) { return o.id === id; })[0];
+      if (!op) return;
+      state.opDraft = draftFromOp(op);
+    } else {
+      state.opDraft = newDraft();
+    }
+    renderOpModal();
+  }
+  function syncDraftFromDom() {
+    var d = state.opDraft;
+    if (!d) return;
+    var map = { opDate: "date", opUnit: "orgUnitId", opSize: "sizeId", opMeters: "meters", opQty: "qty", opPlant: "plant", opNote: "note", opStatus: "status" };
+    Object.keys(map).forEach(function (id) {
+      var e = el(id);
+      if (!e) return;
+      var v = e.value;
+      if (id === "opMeters" || id === "opQty") v = Number(v) || 0;
+      d[map[id]] = v;
+    });
+  }
+  function saveOperation() {
+    syncDraftFromDom();
+    var d = state.opDraft;
+    if (!d.orgUnitId) return toast("Выберите оргединицу", "err");
+    if (!d.date) return toast("Укажите дату", "err");
+    if (!d.sizeId) return toast("Выберите трубу", "err");
+    if (!(d.meters > 0)) return toast("Укажите метраж больше нуля", "err");
+    if (!(d.qty > 0)) return toast("Укажите количество труб", "err");
+    if (d.type !== "in" && !d.fromCells.length) return toast("Выберите ячейки, откуда уходит труба", "err");
+    if ((d.type === "move" || d.type === "to_shop" || d.type === "from_shop") && !d.toCells.length) return toast("Выберите ячейки, куда приходит труба", "err");
+    if (d.type === "in" && !d.toCells.length) return toast("Выберите ячейки для размещения", "err");
+
+    var srcStatus = d.type === "from_shop" ? "prepared" : d.status;
+    if (d.type !== "in") {
+      var bal = balanceMap(function (o) { return o.id !== d.id; });
+      var have = 0;
+      d.fromCells.forEach(function (c) {
+        var b = bal[d.orgUnitId + "|" + d.fromZone + "|" + c + "|" + d.sizeId + "|" + srcStatus];
+        if (b && b.meters > 0) have += b.meters;
+      });
+      if (have + 0.01 < d.meters) {
+        return toast("Недостаточно трубы: в выбранных ячейках " + fmtLen(have), "err");
+      }
+    }
+
+    var op = {
+      id: d.id || uid("op"),
+      date: d.date, type: d.type, orgUnitId: d.orgUnitId, sizeId: d.sizeId,
+      meters: Math.round(d.meters), qty: Math.round(d.qty), status: d.status,
+      from: d.type === "in" ? [] : d.fromCells.map(function (c) { return { zoneId: d.fromZone, cell: c }; }),
+      to: (d.type === "ship" || d.type === "writeoff") ? [] : d.toCells.map(function (c) { return { zoneId: d.toZone, cell: c }; }),
+      plant: d.plant, note: d.note, user: d.user || session.fio,
+      created: d.created || new Date().toISOString()
+    };
+    if (d.id) {
+      var i = store.ops.findIndex(function (o) { return o.id === d.id; });
+      if (i > -1) store.ops[i] = op;
+      logAction("Изменена операция", typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters));
+      notify("Операция изменена", session.fio + ": " + typeLabel(op.type) + ", " + sizeLabel(op.sizeId) + ", " + fmtLen(op.meters), "info");
+    } else {
+      store.ops.unshift(op);
+      logAction("Создана операция", typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters));
+      notify("Новая операция", session.fio + ": " + typeLabel(op.type) + ", " + sizeLabel(op.sizeId) + ", " + fmtLen(op.meters), "ok");
+    }
+    persist();
+    closeModal();
+    toast(d.id ? "Операция сохранена" : "Операция добавлена", "ok");
+    render();
+  }
+  function askDeleteOp(id) {
+    var op = store.ops.filter(function (o) { return o.id === id; })[0];
+    if (!op) return;
+    openModal('<div class="modal-head"><div><h3>Удалить операцию?</h3><p>' + esc(typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters)) + '</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><p class="muted">Действие нельзя отменить. Остатки будут пересчитаны.</p></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button>' +
+      '<button class="btn danger" data-action="confirm-del" data-id="' + id + '">Удалить</button></div>', "sm");
+  }
+  function deleteOp(id) {
+    var op = store.ops.filter(function (o) { return o.id === id; })[0];
+    if (!op) return;
+    store.ops = store.ops.filter(function (o) { return o.id !== id; });
+    logAction("Удалена операция", typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters));
+    notify("Операция удалена", session.fio + ": " + typeLabel(op.type) + ", " + sizeLabel(op.sizeId), "bad");
+    persist();
+    closeModal();
+    toast("Операция удалена", "ok");
+    render();
+  }
+
+  /* ================= остатки ================= */
+  function viewStock() {
+    var rows = stockList();
+    var f = state.stock, q = f.q.trim().toLowerCase();
+    rows = rows.filter(function (r) {
+      if (f.unit && r.orgUnitId !== f.unit) return false;
+      if (f.status && r.status !== f.status) return false;
+      if (q) {
+        var z = zoneById(r.zoneId);
+        var hay = [sizeLabel(r.sizeId), (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : ""].join(" ").toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+    var groups = {};
+    rows.forEach(function (r) {
+      var k = r.orgUnitId + "|" + r.sizeId + "|" + r.status;
+      if (!groups[k]) groups[k] = { orgUnitId: r.orgUnitId, sizeId: r.sizeId, status: r.status, meters: 0, qty: 0, cells: [] };
+      groups[k].meters += r.meters; groups[k].qty += r.qty;
+      var z = zoneById(r.zoneId);
+      groups[k].cells.push({ zone: z, cell: r.cell, meters: r.meters });
+    });
+    var list = Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) {
+      var ua = (unitById(a.orgUnitId) || {}).code || "", ub = (unitById(b.orgUnitId) || {}).code || "";
+      return ua === ub ? (sizeLabel(a.sizeId) < sizeLabel(b.sizeId) ? -1 : 1) : (ua < ub ? -1 : 1);
+    });
+    var t = totals(rows);
+    var body = list.map(function (g) {
+      var s = sizeById(g.sizeId);
+      var cells = g.cells.sort(function (a, b) { return b.meters - a.meters; }).map(function (c) {
+        return '<span class="cell-addr">' + esc(c.zone ? c.zone.name.replace("Автокрановая площадка временного хранения ", "") : "?") + " · " + esc(c.cell) + " · " + fmtLen(c.meters) + "</span>";
+      }).join("");
+      return "<tr><td>" + esc((unitById(g.orgUnitId) || {}).code || "—") + "</td><td><span class=\"strong\">" + esc(s ? s.label : g.sizeId) +
+        '</span><div class="sub">' + (s ? s.kgm + " кг/м" : "") + "</div></td><td>" + statusBadge(g.status) +
+        '</td><td class="num">' + fmtLen(g.meters) + '</td><td class="num">' + fmt1(g.meters * (s ? s.kgm : 0) / 1000) + " т</td>" +
+        '<td class="num">' + fmtInt(g.qty) + '</td><td class="num">' + (g.qty ? fmt1(g.meters / g.qty) + " м" : "—") + "</td>" +
+        "<td>" + cells + "</td></tr>";
+    }).join("");
+    return '<div class="grid kpis" style="margin-bottom:16px">' +
+      kpiCard("", "pipe", "Метраж на складе", fmtLen(t.meters), fmtInt(t.qty) + " труб") +
+      kpiCard("cyan", "box", "Вес", fmtTon(t.kg), "расчёт по ГОСТ") +
+      kpiCard("violet", "chart", "Средняя длина", t.qty ? fmt1(avgLength(t)) + " м" : "—", "по всем позициям") +
+      kpiCard("green", "check", "Позиций", fmtInt(list.length), "строк в остатках") +
+      "</div>" +
+      '<div class="toolbar no-print"><div class="search-inline">' + icon("search") + '<input data-stock="q" value="' + esc(f.q) + '" placeholder="Труба, ячейка, зона"></div>' +
+      '<select data-stock="unit" style="max-width:230px">' + unitOptions(f.unit) + "</select>" +
+      '<select data-stock="status" style="max-width:200px">' + statusOptions(f.status) + "</select>" +
+      '<div class="grow"></div><button class="btn ghost" data-action="export">' + icon("download") + "Экспорт JSON</button></div>" +
+      '<div class="card"><div class="card-head"><div><h3>Остатки по адресам</h3><div class="sub">каждая строка — труба, статус и ячейки</div></div></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Орг. ед.</th><th>Труба</th><th>Статус</th><th class="num">Метров</th><th class="num">Тонн</th><th class="num">Штук</th><th class="num">Ср. длина</th><th>Где лежит</th></tr></thead><tbody>' +
+      (body || '<tr><td colspan="8"><div class="empty">' + icon("box") + '<b>Остатков нет</b>Добавьте приход</div></td></tr>') + "</tbody></table></div></div>";
+  }
+
+  /* ================= схема склада ================= */
+  function viewMap() {
+    var territory = terrById(state.map.territoryId) || store.territories[0];
+    var zones = store.zones.filter(function (z) { return z.territoryId === (territory ? territory.id : ""); });
+    var diam = state.map.d;
+    var mf = function (op) {
+      if (state.map.unitId && op.orgUnitId !== state.map.unitId) return false;
+      if (diam) { var s = sizeById(op.sizeId); if (!s || String(s.d) !== String(diam)) return false; }
+      return true;
+    };
+    var occ = occupancyMap(mf);
+    var rows = stockList().filter(function (r) {
+      var s = sizeById(r.sizeId);
+      if (state.map.unitId && r.orgUnitId !== state.map.unitId) return false;
+      if (diam && (!s || String(s.d) !== String(diam))) return false;
+      return true;
+    });
+    var t = totals(rows);
+    var dSet = {};
+    store.catalog.forEach(function (s) { dSet[s.d] = 1; });
+    var diams = Object.keys(dSet).map(Number).sort(function (a, b) { return a - b; });
+
+    var grid = zones.map(function (z) {
+      var cells = cellsOf(z.id);
+      var cap = capacityOf(z);
+      var zoneM = 0;
+      cells.forEach(function (c) { zoneM += Math.max(0, occupancyCell(occ, z.id, c)); });
+      var zp = pct(zoneM, cap * cells.length);
+      var cellHtml = cells.map(function (c) {
+        var m = Math.max(0, occupancyCell(occ, z.id, c));
+        var p = pct(m, cap);
+        var cls = fillClass(p);
+        if (z.type === "pvc" && !m) cls = "pvc";
+        if (z.type === "shop" && !m) cls = "shop";
+        return '<button type="button" class="map-cell ' + cls + (p >= 80 ? " full" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" title="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '">' +
+          '<span class="code">' + esc(c) + '</span><span class="m">' + (m ? fmtLen(m) : "0") + "</span>" +
+          '<span class="fillbar"><i style="width:' + Math.min(100, p) + '%"></i></span>' +
+          (p >= 80 ? '<span class="full-tag">заполнено</span>' : "") + "</button>";
+      }).join("");
+      return '<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>' + esc(z.name) + '</h3><div class="sub">' +
+        zoneTypeLabel(z.type) + " · " + cells.length + " ячеек · " + fmtLen(cap) + " на ячейку</div></div>" +
+        '<span class="badge ' + (zp > 80 ? "bad" : zp > 40 ? "warn" : "ok") + ' right">' + zp + "% занято</span></div>" +
+        '<div class="card-body"><div class="map-grid">' + cellHtml + "</div></div></div>";
+    }).join("");
+
+    var topCells = [];
+    Object.keys(occ).forEach(function (k) {
+      if (occ[k] > 0) topCells.push({ k: k, m: occ[k] });
+    });
+    topCells.sort(function (a, b) { return b.m - a.m; });
+    var sel = state.map.sel;
+    var selHtml = "";
+    if (sel) {
+      var zz = zoneById(sel.zoneId);
+      var inCell = rows.filter(function (r) { return r.zoneId === sel.zoneId && r.cell === sel.cell; });
+      selHtml = '<div class="cell-detail"><h4>' + esc((zz ? zz.name : "") + " · " + sel.cell) + "</h4>" +
+        (inCell.length ? inCell.map(function (r) {
+          return "<div style=\"display:flex;justify-content:space-between;gap:8px;padding:3px 0\"><span>" + esc(sizeLabel(r.sizeId)) + " · " + statusLabel(r.status) + "</span><b>" + fmtLen(r.meters) + "</b></div>";
+        }).join("") : '<div class="muted">Пусто</div>') + "</div>";
+    }
+
+    return '<div class="toolbar no-print">' +
+      '<select data-map="territory" style="max-width:200px">' + store.territories.map(function (x) {
+        return '<option value="' + x.id + '"' + (territory && x.id === territory.id ? " selected" : "") + ">" + esc(x.name) + "</option>";
+      }).join("") + "</select>" +
+      '<select data-map="unit" style="max-width:230px">' + unitOptions(state.map.unitId) + "</select>" +
+      '<select data-map="d" style="max-width:170px"><option value="">Все диаметры</option>' + diams.map(function (d) {
+        return '<option value="' + d + '"' + (String(d) === String(diam) ? " selected" : "") + ">Ø" + d + "</option>";
+      }).join("") + "</select>" +
+      '<div class="grow"></div><span class="badge info">' + fmtLen(t.meters) + " · " + fmtTon(t.kg) + "</span></div>" +
+      '<div class="map-layout"><div>' + (grid || '<div class="empty">Нет зон на территории</div>') +
+      '<div class="legend"><span><i style="background:#f8fafd;border-color:#dfe7f2"></i>пусто</span>' +
+      '<span><i style="background:#dcfce7;border-color:#a7e3bd"></i>до 40%</span>' +
+      '<span><i style="background:#fef3c7;border-color:#f5cf7c"></i>40–80%</span>' +
+      '<span><i style="background:#ffe4e6;border-color:#f9b4c0"></i>заполнено</span>' +
+      '<span><i style="background:#f3e8ff;border-color:#d8b4fe"></i>ПВХ</span>' +
+      '<span><i style="background:#dbeafe;border-color:#bfdbfe"></i>цех</span></div></div>' +
+      '<div class="map-side"><div class="card"><div class="card-head"><h3>Сводка</h3></div><div class="card-body">' +
+      '<div class="stat"><span>Метраж</span><b>' + fmtLen(t.meters) + "</b></div>" +
+      '<div class="stat"><span>Вес</span><b>' + fmtTon(t.kg) + "</b></div>" +
+      '<div class="stat"><span>Труб</span><b>' + fmtInt(t.qty) + "</b></div>" +
+      '<div class="stat"><span>Средняя длина</span><b>' + (t.qty ? fmt1(avgLength(t)) + " м" : "—") + "</b></div>" +
+      '<div class="stat"><span>Занято ячеек</span><b>' + fmtInt(topCells.length) + "</b></div>" +
+      selHtml + "</div></div>" +
+      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Самые заполненные</h3></div><div class="card-body">' +
+      (topCells.slice(0, 6).map(function (x) {
+        var p = x.k.split("|"), z = zoneById(p[0]);
+        return '<div class="stat"><span>' + esc((z ? z.name.replace("Автокрановая площадка временного хранения ", "") : "?") + " · " + p[1]) + "</span><b>" + fmtLen(x.m) + "</b></div>";
+      }).join("") || '<div class="muted">Пусто</div>') + "</div></div></div></div>";
+  }
+
+  /* ================= отчёты ================= */
+  function opsInPeriod() {
+    var p = state.period;
+    return store.ops.filter(function (o) {
+      if (p.from && o.date < p.from) return false;
+      if (p.to && o.date > p.to) return false;
+      return true;
+    });
+  }
+  function viewReports() {
+    var ops = opsInPeriod();
+    var t = { in: { c: 0, m: 0, kg: 0 }, ship: { c: 0, m: 0, kg: 0 }, move: { c: 0, m: 0, kg: 0 }, to_shop: { c: 0, m: 0, kg: 0 }, from_shop: { c: 0, m: 0, kg: 0 }, writeoff: { c: 0, m: 0, kg: 0 } };
+    ops.forEach(function (o) {
+      var s = sizeById(o.sizeId), b = t[o.type];
+      if (!b) return;
+      b.c++; b.m += o.meters; b.kg += o.meters * (s ? s.kgm : 0);
+    });
+    var rows = stockList();
+    var all = totals(rows);
+    var byUnit = store.orgUnits.map(function (u) {
+      return { u: u, t: totals(rows.filter(function (r) { return r.orgUnitId === u.id; })) };
+    });
+    var bySize = {};
+    rows.forEach(function (r) {
+      if (!bySize[r.sizeId]) bySize[r.sizeId] = { m: 0, q: 0, kg: 0 };
+      var s = sizeById(r.sizeId);
+      bySize[r.sizeId].m += r.meters; bySize[r.sizeId].q += r.qty; bySize[r.sizeId].kg += r.meters * (s ? s.kgm : 0);
+    });
+    var sizeList = Object.keys(bySize).map(function (k) { return { id: k, m: bySize[k].m, q: bySize[k].q, kg: bySize[k].kg }; })
+      .sort(function (a, b) { return b.m - a.m; }).slice(0, 15);
+
+    var shopMeters = rows.filter(function (r) { return (zoneById(r.zoneId) || {}).type === "shop"; }).reduce(function (s, r) { return s + r.meters; }, 0);
+    var zones = store.zones.map(function (z) {
+      var m = rows.filter(function (r) { return r.zoneId === z.id; }).reduce(function (s, r) { return s + r.meters; }, 0);
+      return { z: z, m: m, p: pct(m, z.cells * capacityOf(z)) };
+    });
+
+    var users = {};
+    ops.forEach(function (o) { users[o.user] = (users[o.user] || 0) + 1; });
+    var userList = Object.keys(users).map(function (k) { return { fio: k, n: users[k] }; }).sort(function (a, b) { return b.n - a.n; });
+
+    var moveTable = ["in", "ship", "to_shop", "from_shop", "move", "writeoff"].map(function (k) {
+      return "<tr><td>" + typeBadge(k) + '</td><td class="num">' + t[k].c + '</td><td class="num">' + fmtLen(t[k].m) + '</td><td class="num">' + fmtTon(t[k].kg) + "</td></tr>";
+    }).join("");
+
+    var unitRows = byUnit.map(function (x) {
+      return "<tr><td><b>" + esc(x.u.code) + "</b><div class=\"sub\">" + esc(x.u.name) + '</div></td><td class="num">' + fmtLen(x.t.meters) +
+        '</td><td class="num">' + fmtTon(x.t.kg) + '</td><td class="num">' + fmtInt(x.t.qty) + '</td><td class="num">' + (x.t.qty ? fmt1(avgLength(x.t)) + " м" : "—") + "</td></tr>";
+    }).join("");
+
+    var sizeRows = sizeList.map(function (x) {
+      var s = sizeById(x.id);
+      return "<tr><td>" + esc(s ? s.label : x.id) + '<div class="sub">' + esc(s ? s.gost : "") + '</div></td><td class="num">' + fmtLen(x.m) +
+        '</td><td class="num">' + fmtTon(x.kg) + '</td><td class="num">' + fmtInt(x.q) + '</td></tr>';
+    }).join("");
+
+    var zoneRows = zones.map(function (x) {
+      return "<tr><td>" + esc(x.z.name) + '<div class="sub">' + zoneTypeLabel(x.z.type) + '</div></td><td class="num">' + fmtLen(x.m) +
+        '</td><td class="num">' + fmtLen(x.z.cells * capacityOf(x.z)) + '</td><td><span class="badge ' + (x.p > 80 ? "bad" : x.p > 40 ? "warn" : "ok") + '">' + x.p + "%</span></td></tr>";
+    }).join("");
+
+    var userRows = userList.map(function (x) { return "<tr><td>" + esc(x.fio) + '</td><td class="num">' + x.n + "</td></tr>"; }).join("");
+
+    return '<div class="toolbar no-print">' +
+      '<label class="hint">Период</label><input type="date" data-rep="from" value="' + esc(state.period.from) + '">' +
+      '<input type="date" data-rep="to" value="' + esc(state.period.to) + '">' +
+      '<div class="grow"></div><button class="btn ghost" data-action="print">' + icon("print") + "Печать</button></div>" +
+      '<div class="grid kpis" style="margin-bottom:16px">' +
+      kpiCard("green", "arrow", "Приход за период", fmtLen(t.in.m), t.in.c + " операций · " + fmtTon(t.in.kg)) +
+      kpiCard("amber", "arrow", "Отгружено", fmtLen(t.ship.m), t.ship.c + " операций · " + fmtTon(t.ship.kg)) +
+      kpiCard("violet", "pipe", "На складе сейчас", fmtLen(all.meters), fmtTon(all.kg)) +
+      kpiCard("cyan", "check", "В цехе", fmtLen(shopMeters), "подготовка в работе") + "</div>" +
+      '<div class="cols-2"><div class="card"><div class="card-head"><h3>Движение по типам операций</h3></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Операция</th><th class="num">Кол-во</th><th class="num">Метров</th><th class="num">Тонн</th></tr></thead><tbody>' + moveTable + "</tbody></table></div></div>" +
+      '<div class="card"><div class="card-head"><h3>Цикл подготовки</h3></div><div class="card-body">' +
+      '<div class="stat"><span>Подано в цех</span><b>' + fmtLen(t.to_shop.m) + "</b></div>" +
+      '<div class="stat"><span>Возвращено из цеха</span><b>' + fmtLen(t.from_shop.m) + "</b></div>" +
+      '<div class="stat"><span>Отгружено</span><b>' + fmtLen(t.ship.m) + "</b></div>" +
+      '<div class="stat"><span>Остаток в цехе</span><b>' + fmtLen(shopMeters) + "</b></div>" +
+      '<p class="hint" style="margin-top:10px">Разница «подано − возвращено − отгружено» показывает трубу, которая ещё в работе.</p>' +
+      "</div></div></div>" +
+      '<div class="card mt16"><div class="card-head"><h3>Остатки по оргединицам</h3></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Оргединица</th><th class="num">Метров</th><th class="num">Тонн</th><th class="num">Штук</th><th class="num">Ср. длина</th></tr></thead><tbody>' +
+      (unitRows || '<tr><td colspan="5" class="muted">Нет данных</td></tr>') + "</tbody></table></div></div>" +
+      '<div class="cols-2 mt16"><div class="card"><div class="card-head"><h3>Топ типоразмеров</h3></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Труба</th><th class="num">Метров</th><th class="num">Тонн</th><th class="num">Штук</th></tr></thead><tbody>' +
+      (sizeRows || '<tr><td colspan="4" class="muted">Нет данных</td></tr>') + "</tbody></table></div></div>" +
+      '<div class="card"><div class="card-head"><h3>Активность сотрудников</h3></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Сотрудник</th><th class="num">Операций</th></tr></thead><tbody>' +
+      (userRows || '<tr><td colspan="2" class="muted">Нет данных</td></tr>') + "</tbody></table></div></div></div>" +
+      '<div class="card mt16"><div class="card-head"><h3>Заполненность зон</h3></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Зона</th><th class="num">Занято</th><th class="num">Ёмкость</th><th>Заполнение</th></tr></thead><tbody>' + zoneRows + "</tbody></table></div></div>";
+  }
+
+  /* ================= поиск ================= */
+  function viewSearch() {
+    var q = state.search.trim().toLowerCase();
+    if (!q) {
+      return '<div class="card"><div class="card-body"><div class="empty">' + icon("search") +
+        "<b>Введите запрос</b>Труба, диаметр, ячейка, оргединица, сотрудник или примечание</div></div></div>";
+    }
+    var ops = store.ops.filter(function (o) {
+      return [o.date, fmtDate(o.date), typeLabel(o.type), sizeLabel(o.sizeId), o.plant, o.user, o.note,
+        (unitById(o.orgUnitId) || {}).code, addrText(o.from), addrText(o.to)].join(" ").toLowerCase().indexOf(q) > -1;
+    }).slice(0, 20);
+    var stock = stockList().filter(function (r) {
+      var z = zoneById(r.zoneId);
+      return [sizeLabel(r.sizeId), (unitById(r.orgUnitId) || {}).code, r.cell, z ? z.name : "", statusLabel(r.status)].join(" ").toLowerCase().indexOf(q) > -1;
+    }).slice(0, 20);
+    var users = store.users.filter(function (u) {
+      return [u.fio, u.tab, u.pos, ROLE_LABELS[u.role], (unitById(u.orgUnitId) || {}).code].join(" ").toLowerCase().indexOf(q) > -1;
+    }).slice(0, 10);
+
+    function block(title, inner, empty) {
+      return '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>' + title + '</h3></div><div class="card-body">' + (inner || '<div class="muted">' + empty + "</div>") + "</div></div>";
+    }
+    var opsHtml = ops.map(function (o) {
+      return '<div class="stat"><span>' + fmtDate(o.date) + " · " + esc(o.user) + " · " + esc(sizeLabel(o.sizeId)) + '</span><b>' + fmtLen(o.meters) + "</b></div>";
+    }).join("");
+    var stockHtml = stock.map(function (r) {
+      return '<div class="stat"><span>' + esc(sizeLabel(r.sizeId)) + " · " + esc(r.cell) + " · " + statusLabel(r.status) + '</span><b>' + fmtLen(r.meters) + "</b></div>";
+    }).join("");
+    var usersHtml = users.map(function (u) {
+      return '<div class="stat"><span>' + esc(u.fio) + " · таб. " + esc(u.tab) + '</span><b>' + esc(ROLE_LABELS[u.role]) + "</b></div>";
+    }).join("");
+    return '<div class="toolbar"><div class="search-inline" style="flex:1">' + icon("search") +
+      '<input id="searchMain" value="' + esc(state.search) + '" placeholder="Что ищем?"></div></div>' +
+      block("Операции", opsHtml, "Совпадений нет") + block("Остатки", stockHtml, "Совпадений нет") + block("Сотрудники", usersHtml, "Совпадений нет");
+  }
+
+  /* ================= проверки ================= */
+  function viewChecks() {
+    var issues = [];
+    var balances = balanceMap();
+    var neg = 0;
+    Object.keys(balances).forEach(function (k) { if (balances[k].meters < -0.01) neg++; });
+    if (neg) issues.push({ level: "bad", title: "Отрицательные остатки", text: neg + " позиций ушли в минус — проверьте операции", count: neg });
+
+    var badOps = store.ops.filter(function (o) { return !(o.meters > 0) || !(o.qty > 0); });
+    if (badOps.length) issues.push({ level: "warn", title: "Операции без метража или штук", text: badOps.length + " операций с нулевыми значениями", count: badOps.length });
+
+    var over = 0;
+    store.zones.forEach(function (z) {
+      var cells = cellsOf(z.id);
+      var occ = occupancyMap();
+      cells.forEach(function (c) { if (occupancyCell(occ, z.id, c) > capacityOf(z) + 0.01) over++; });
+    });
+    if (over) issues.push({ level: "warn", title: "Переполненные ячейки", text: over + " ячеек заполнены выше ёмкости", count: over });
+
+    var unknownSize = store.ops.filter(function (o) { return !sizeById(o.sizeId); });
+    if (unknownSize.length) issues.push({ level: "bad", title: "Неизвестные типоразмеры", text: unknownSize.length + " операций ссылаются на удалённую трубу", count: unknownSize.length });
+
+    var badZones = store.ops.filter(function (o) {
+      return (o.from || []).concat(o.to || []).some(function (c) { return !zoneById(c.zoneId); });
+    });
+    if (badZones.length) issues.push({ level: "bad", title: "Удалённые зоны", text: badZones.length + " операций ссылаются на несуществующие зоны", count: badZones.length });
+
+    var codes = {}, dup = 0;
+    store.orgUnits.forEach(function (u) { if (codes[u.code]) dup++; codes[u.code] = 1; });
+    if (dup) issues.push({ level: "warn", title: "Повторяющиеся коды оргединиц", text: dup + " дублей кодов", count: dup });
+
+    var odd = 0;
+    var rows = stockList();
+    rows.forEach(function (r) {
+      if (r.qty > 0) {
+        var avg = r.meters / r.qty;
+        if (avg < 4 || avg > 13.5) odd++;
+      }
+    });
+    if (odd) issues.push({ level: "warn", title: "Подозрительная средняя длина", text: odd + " позиций с длиной вне 4–13,5 м", count: odd });
+
+    var emptyZones = store.zones.filter(function (z) { return !(z.cells > 0); });
+    if (emptyZones.length) issues.push({ level: "warn", title: "Зоны без ячеек", text: emptyZones.length + " зон не имеют ячеек", count: emptyZones.length });
+
+    var ok = issues.length === 0;
+    return '<div class="grid kpis" style="margin-bottom:16px">' +
+      kpiCard(ok ? "green" : "amber", "shield", "Состояние данных", ok ? "Норма" : String(issues.length), ok ? "ошибок не найдено" : "замечаний") +
+      kpiCard("", "pipe", "Операций", fmtInt(store.ops.length), "в базе") +
+      kpiCard("cyan", "box", "Позиций остатка", fmtInt(rows.length), "строк") +
+      kpiCard("violet", "users", "Пользователей", fmtInt(store.users.length), "активных и не очень") + "</div>" +
+      '<div class="card"><div class="card-head"><h3>Результаты контроля</h3></div><div class="card-body">' +
+      (ok ? '<div class="empty">' + icon("check") + "<b>Всё сходится</b>Отрицательных остатков и битых ссылок нет</div>" :
+        issues.map(function (i) {
+          return '<div class="audit-item"><span class="badge ' + i.level + '">' + (i.level === "bad" ? "ошибка" : "внимание") + "</span><div><b>" + esc(i.title) + "</b><div class=\"hint\">" + esc(i.text) + "</div></div></div>";
+        }).join("")) + "</div></div>";
+  }
+
+  /* ================= инструкция ================= */
+  function viewHelp() {
+    return '<div class="card"><div class="card-body" style="max-width:900px">' +
+      "<h2 style=\"font-size:22px;margin-bottom:10px\">Как устроен учёт</h2>" +
+      '<p class="muted">Система ведёт постилажный учёт труб: метры, вес, адреса хранения и стадию подготовки. Данные хранятся в браузере, на сервер ничего не отправляется.</p>' +
+      '<div class="section-title"><h2>Жизненный цикл трубы</h2></div>' +
+      '<div style="display:grid;gap:8px">' +
+      ["Завод — приход, труба ложится на стеллаж как <b>не подготовленная</b>",
+        "Цех — подача на подготовку: со стеллажа уходит неподготовленная, из цеха выходит <b>подготовленная</b>",
+        "Стеллаж — возврат подготовленной трубы на хранение",
+        "Погрузка — подготовленная труба отгружается на машину",
+        "Отгрузка — расход в структурное подразделение"].map(function (t, i) {
+          return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:#f7fafe;border:1px solid var(--line2);border-radius:12px"><span class="badge info">' + (i + 1) + "</span><span>" + t + "</span></div>";
+        }).join("") + "</div>" +
+      '<div class="section-title"><h2>Метры и вес</h2></div>' +
+      "<p>Вес считается автоматически: <b>метры × масса 1 п.м.</b> Масса берётся из каталога по ГОСТ 632-80, 631-75 и 633-80. Средняя длина = метры ÷ штуки.</p>" +
+      '<div class="section-title"><h2>Ячейки</h2></div>' +
+      "<p>Одна операция может занимать несколько ячеек — отметьте их chips-кнопками. Остаток распределяется между ячейками поровну. Цвет ячейки на схеме показывает заполненность: зелёный до 40%, оранжевый 40–80%, красный — заполнено.</p>" +
+      '<div class="section-title"><h2>Роли</h2></div>' +
+      '<p><b>Администратор</b> — всё, включая пользователей и справочники. <b>Начальник участка</b> — просмотр, отчёты, редактирование. <b>Кладовщик</b> — операции и просмотр. <b>Наблюдатель</b> — только просмотр.</p>' +
+      '<p class="hint" style="margin-top:10px">Права выдаются индивидуально в разделе «Пользователи»: можно разрешить конкретному сотруднику создавать операции или смотреть журнал.</p>' +
+      "</div></div>";
+  }
+
+  /* ================= админ: пользователи ================= */
+  function viewAdminUsers() {
+    var list = store.users.slice().sort(function (a, b) { return a.fio.localeCompare(b.fio, "ru"); });
+    var rows = list.map(function (u) {
+      return "<tr><td><b>" + esc(u.fio) + "</b><div class=\"sub\">" + esc(u.pos || "") + '</div></td><td class="mono">' + esc(u.tab) + "</td>" +
+        "<td><span class=\"badge " + ROLE_BADGE[u.role] + '">' + esc(ROLE_LABELS[u.role]) + "</span></td>" +
+        "<td>" + esc((unitById(u.orgUnitId) || {}).code || "—") + "</td>" +
+        '<td class="num">' + permsOf(u).length + " из " + ALL_PERMS.length + "</td>" +
+        "<td>" + (u.active === false ? '<span class="badge muted">Отключён</span>' : '<span class="badge ok">Активен</span>') + "</td>" +
+        '<td><div class="actions"><button class="btn ghost sm" data-action="edit-user" data-id="' + u.id + '">' + icon("edit") + "</button>" +
+        (u.id !== session.id ? '<button class="btn danger sm" data-action="del-user" data-id="' + u.id + '">' + icon("trash") + "</button>" : "") + "</div></td></tr>";
+    }).join("");
+    return '<div class="toolbar no-print"><div class="grow"></div><button class="btn primary" data-action="add-user">' + icon("plus") + "Добавить сотрудника</button></div>" +
+      '<div class="card"><div class="card-head"><div><h3>Пользователи</h3><div class="sub">роли и индивидуальные права</div></div></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Сотрудник</th><th>Табельный</th><th>Роль</th><th>Орг. ед.</th><th class="num">Права</th><th>Доступ</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+  }
+  function roleOptions(sel) {
+    return Object.keys(ROLE_LABELS).map(function (r) {
+      return '<option value="' + r + '"' + (r === sel ? " selected" : "") + ">" + ROLE_LABELS[r] + "</option>";
+    }).join("");
+  }
+  function userUnitOptions(sel) {
+    return store.orgUnits.map(function (u) {
+      return '<option value="' + u.id + '"' + (u.id === sel ? " selected" : "") + ">" + esc(unitLabel(u)) + "</option>";
+    }).join("");
+  }
+  function permGridHtml(u) {
+    var has = permsOf(u);
+    return PERM_GROUPS.map(function (g) {
+      return '<div style="margin-top:10px"><div class="hint" style="font-weight:700;color:#475569">' + esc(g.group) + '</div><div class="perm-grid">' +
+        g.items.map(function (i) {
+          return '<label><input type="checkbox" data-perm="' + i[0] + '"' + (has.indexOf(i[0]) > -1 ? " checked" : "") + ">" + esc(i[1]) + "</label>";
+        }).join("") + "</div></div>";
+    }).join("");
+  }
+  function userModal(id) {
+    var u = id ? byId(store.users, id) : { id: "", fio: "", tab: "", pos: "", role: "keeper", orgUnitId: store.orgUnits[0].id, perms: null, active: true };
+    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить сотрудника" : "Новый сотрудник") + '</h3><p>Доступ и полномочия</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><div class="row"><label class="field"><span>ФИО</span><input id="uFio" value="' + esc(u.fio) + '" placeholder="Иванов И.П."></label>' +
+      '<label class="field"><span>Табельный номер</span><input id="uTab" value="' + esc(u.tab) + '" inputmode="numeric" maxlength="8" placeholder="1001"></label></div>' +
+      '<div class="row"><label class="field"><span>Должность</span><input id="uPos" value="' + esc(u.pos || "") + '" placeholder="Кладовщик"></label>' +
+      '<label class="field"><span>Оргединица</span><select id="uUnit">' + userUnitOptions(u.orgUnitId) + "</select></label></div>" +
+      '<div class="row"><label class="field"><span>Роль</span><select id="uRole">' + roleOptions(u.role) + "</select></label>" +
+      '<label class="field"><span>Доступ</span><select id="uActive"><option value="1"' + (u.active !== false ? " selected" : "") + '>Активен</option><option value="0"' + (u.active === false ? " selected" : "") + ">Отключён</option></select></label></div>" +
+      '<div class="field"><span>Права</span><div id="uPerms">' + permGridHtml(u) + "</div><p class=\"hint\">Для роли «Администратор» права выдаются полностью автоматически.</p></div></div>" +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-user" data-id="' + esc(u.id) + '">Сохранить</button></div>');
+  }
+  function saveUser() {
+    var fio = el("uFio").value.trim(), tab = el("uTab").value.trim();
+    if (fio.length < 3) return toast("Укажите ФИО", "err");
+    if (!/^\d{4,8}$/.test(tab)) return toast("Табельный — 4–8 цифр", "err");
+    var id = document.querySelector('[data-action="save-user"]').getAttribute("data-id");
+    var dup = store.users.filter(function (u) { return u.tab === tab && u.id !== id; })[0];
+    if (dup) return toast("Такой табельный уже есть у " + dup.fio, "err");
+    var perms = [];
+    document.querySelectorAll("#uPerms input[data-perm]").forEach(function (c) { if (c.checked) perms.push(c.getAttribute("data-perm")); });
+    var u = {
+      id: id || uid("u"), fio: fio, tab: tab, pos: el("uPos").value.trim(),
+      role: el("uRole").value, orgUnitId: el("uUnit").value,
+      perms: perms, active: el("uActive").value === "1"
+    };
+    if (id) {
+      var i = store.users.findIndex(function (x) { return x.id === id; });
+      store.users[i] = u;
+      logAction("Изменён пользователь", u.fio + " · " + ROLE_LABELS[u.role]);
+      notify("Права обновлены", u.fio + " — роль " + ROLE_LABELS[u.role], "info");
+    } else {
+      store.users.push(u);
+      logAction("Добавлен пользователь", u.fio + " · " + ROLE_LABELS[u.role]);
+      notify("Новый пользователь", u.fio + " добавлен с ролью " + ROLE_LABELS[u.role], "ok");
+    }
+    persist();
+    if (u.id === session.id) {
+      session = u;
+      try { sessionStorage.setItem(SKEY, u.tab); } catch (e) {}
+    }
+    closeModal();
+    toast("Сохранено", "ok");
+    render();
+  }
+  function delUser(id) {
+    var u = byId(store.users, id);
+    if (!u) return;
+    if (u.id === session.id) return toast("Нельзя удалить себя", "err");
+    var used = store.ops.some(function (o) { return o.user === u.fio; });
+    if (used) {
+      u.active = false;
+      persist();
+      logAction("Отключён пользователь", u.fio);
+      closeModal();
+      toast("Сотрудник отключён: у него есть операции", "ok");
       render();
-    });
+      return;
+    }
+    store.users = store.users.filter(function (x) { return x.id !== id; });
+    persist();
+    logAction("Удалён пользователь", u.fio);
+    closeModal();
+    toast("Сотрудник удалён", "ok");
+    render();
+  }
+  function askDeleteUser(id) {
+    var u = byId(store.users, id);
+    if (!u) return;
+    openModal('<div class="modal-head"><div><h3>Удалить сотрудника?</h3><p>' + esc(u.fio) + " · таб. " + esc(u.tab) + '</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><p class="muted">Если у сотрудника есть операции, доступ будет отключён, а история сохранится.</p></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn danger" data-action="confirm-del-user" data-id="' + id + '">Удалить</button></div>', "sm");
   }
 
-  function validateOp(o) {
-    var e = [];
-    if (!o.date) e.push("Укажите дату операции.");
-    if (store.refs.types.indexOf(o.type) === -1) e.push("Выберите тип операции.");
-    if (!o.size) e.push("Выберите типоразмер трубы.");
-    if (!(o.qty > 0)) e.push("Количество должно быть целым числом больше нуля.");
-    if (o.type !== "Приход" && !addrKey(o.ft, o.fr, o.fc)) e.push("Укажите адрес источника (территория, стеллаж, ячейка).");
-    if (o.type !== "Расход" && !addrKey(o.tt, o.tr, o.tc)) e.push("Укажите адрес приёмки (территория, стеллаж, ячейка).");
-    if (o.type !== "Приход" && o.type !== "Расход" && addrKey(o.ft, o.fr, o.fc) === addrKey(o.tt, o.tr, o.tc)) e.push("Источник и приёмник совпадают.");
-    return e;
+  /* ================= админ: оргединицы и территории ================= */
+  function viewAdminRefs() {
+    var unitRows = store.orgUnits.map(function (u) {
+      var zonesM = stockList().filter(function (r) { return r.orgUnitId === u.id; }).reduce(function (s, r) { return s + r.meters; }, 0);
+      return "<tr><td><b>" + esc(u.code) + "</b></td><td>" + esc(u.name) + '</td><td class="num">' + fmtLen(zonesM) + "</td>" +
+        '<td><div class="actions"><button class="btn ghost sm" data-action="edit-unit" data-id="' + u.id + '">' + icon("edit") + "</button>" +
+        '<button class="btn danger sm" data-action="del-unit" data-id="' + u.id + '">' + icon("trash") + "</button></div></td></tr>";
+    }).join("");
+
+    var terrBlocks = store.territories.map(function (t) {
+      var zones = store.zones.filter(function (z) { return z.territoryId === t.id; });
+      var rows = zones.map(function (z) {
+        var cap = z.cells * capacityOf(z);
+        var m = stockList().filter(function (r) { return r.zoneId === z.id; }).reduce(function (s, r) { return s + r.meters; }, 0);
+        return "<tr><td><b>" + esc(z.name) + '</b><div class="sub">' + zoneTypeLabel(z.type) + '</div></td><td class="num">' + z.cells + '</td><td class="num">' + fmtLen(capacityOf(z)) + '</td>' +
+          '<td class="num">' + fmtLen(m) + " / " + fmtLen(cap) + "</td>" +
+          '<td><div class="actions"><button class="btn ghost sm" data-action="edit-zone" data-id="' + z.id + '">' + icon("edit") + "</button>" +
+          '<button class="btn danger sm" data-action="del-zone" data-id="' + z.id + '">' + icon("trash") + "</button></div></td></tr>";
+      }).join("");
+      return '<div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>' + esc(t.name) + '</h3><div class="sub">' + zones.length + ' зон</div></div>' +
+        '<button class="btn ghost sm right" data-action="add-zone" data-id="' + t.id + '">' + icon("plus") + "Зона</button></div>" +
+        '<div class="table-wrap"><table class="tbl"><thead><tr><th>Зона</th><th class="num">Ячеек</th><th class="num">На ячейку</th><th class="num">Занято</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="muted">Зон нет</td></tr>') + "</tbody></table></div></div>";
+    }).join("");
+
+    return '<div class="toolbar no-print"><div class="grow"></div><button class="btn ghost" data-action="add-unit">' + icon("plus") + "Оргединица</button>" +
+      '<button class="btn primary" data-action="add-territory">' + icon("plus") + "Территория</button></div>" +
+      '<div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>Оргединицы</h3><div class="sub">код и расшифровка в скобках</div></div></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Код</th><th>Расшифровка</th><th class="num">Остаток</th><th></th></tr></thead><tbody>' + unitRows + "</tbody></table></div></div>" +
+      terrBlocks;
+  }
+  function unitModal(id) {
+    var u = id ? byId(store.orgUnits, id) : { code: "", name: "" };
+    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить оргединицу" : "Новая оргединица") + '</h3><p>Отображается как «Код (расшифровка)»</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><div class="row"><label class="field"><span>Код</span><input id="unCode" value="' + esc(u.code) + '" maxlength="12" placeholder="ЦБТ"></label>' +
+      '<label class="field"><span>Расшифровка</span><input id="unName" value="' + esc(u.name) + '" placeholder="Центральная база труб"></label></div></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-unit" data-id="' + esc(id || "") + '">Сохранить</button></div>', "sm");
+  }
+  function saveUnit() {
+    var code = el("unCode").value.trim(), name = el("unName").value.trim();
+    if (!code) return toast("Укажите код", "err");
+    var id = document.querySelector('[data-action="save-unit"]').getAttribute("data-id");
+    var dup = store.orgUnits.filter(function (u) { return u.code === code && u.id !== id; })[0];
+    if (dup) return toast("Код уже используется", "err");
+    if (id) {
+      var u = byId(store.orgUnits, id); u.code = code; u.name = name;
+      logAction("Изменена оргединица", code);
+    } else {
+      store.orgUnits.push({ id: uid("u"), code: code, name: name });
+      logAction("Добавлена оргединица", code);
+    }
+    persist(); closeModal(); toast("Сохранено", "ok"); render();
+  }
+  function delUnit(id) {
+    var used = store.ops.some(function (o) { return o.orgUnitId === id; });
+    if (used) return toast("Оргединица используется в операциях", "err");
+    store.orgUnits = store.orgUnits.filter(function (u) { return u.id !== id; });
+    store.users.forEach(function (u) { if (u.orgUnitId === id) u.orgUnitId = (store.orgUnits[0] || {}).id; });
+    persist(); logAction("Удалена оргединица", id); toast("Удалено", "ok"); render();
+  }
+  function territoryModal() {
+    openModal('<div class="modal-head"><div><h3>Новая территория</h3><p>Например, Белый Яр или промзона</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><label class="field"><span>Название</span><input id="tName" placeholder="Название территории"></label></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-territory">Создать</button></div>', "sm");
+  }
+  function saveTerritory() {
+    var name = el("tName").value.trim();
+    if (!name) return toast("Укажите название", "err");
+    store.territories.push({ id: uid("t"), name: name });
+    persist(); logAction("Добавлена территория", name); closeModal(); toast("Территория добавлена", "ok"); render();
+  }
+  function zoneModal(id, territoryId) {
+    var z = id ? byId(store.zones, id) : { name: "", type: "rack", cells: 10, capacity: store.settings.cellCapacity || 120, territoryId: territoryId };
+    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить зону" : "Новая зона") + '</h3><p>Стеллаж, площадка ПВХ или цех</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><label class="field"><span>Название</span><input id="zName" value="' + esc(z.name) + '" placeholder="Стеллаж 6"></label>' +
+      '<div class="row"><label class="field"><span>Тип</span><select id="zType"><option value="rack"' + (z.type === "rack" ? " selected" : "") + '>Стеллаж</option>' +
+      '<option value="pvc"' + (z.type === "pvc" ? " selected" : "") + '>Площадка ПВХ</option><option value="shop"' + (z.type === "shop" ? " selected" : "") + ">Цех</option></select></label>" +
+      '<label class="field"><span>Территория</span><select id="zTerr">' + store.territories.map(function (t) {
+        return '<option value="' + t.id + '"' + (t.id === z.territoryId ? " selected" : "") + ">" + esc(t.name) + "</option>";
+      }).join("") + "</select></label></div>" +
+      '<div class="row"><label class="field"><span>Ячеек</span><input type="number" id="zCells" min="1" max="60" value="' + z.cells + '"></label>' +
+      '<label class="field"><span>Метров на ячейку</span><input type="number" id="zCap" min="10" step="10" value="' + capacityOf(z) + '"></label></div></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-zone" data-id="' + esc(id || "") + '">Сохранить</button></div>');
+  }
+  function saveZone() {
+    var name = el("zName").value.trim();
+    if (!name) return toast("Укажите название зоны", "err");
+    var cells = Number(el("zCells").value), cap = Number(el("zCap").value);
+    if (!(cells > 0)) return toast("Ячеек должно быть больше нуля", "err");
+    var id = document.querySelector('[data-action="save-zone"]').getAttribute("data-id");
+    var z = id ? byId(store.zones, id) : { id: uid("z") };
+    z.name = name; z.type = el("zType").value; z.territoryId = el("zTerr").value; z.cells = cells; z.capacity = cap;
+    if (!id) store.zones.push(z);
+    persist(); logAction(id ? "Изменена зона" : "Добавлена зона", name + " · " + cells + " ячеек"); closeModal(); toast("Сохранено", "ok"); render();
+  }
+  function delZone(id) {
+    var used = store.ops.some(function (o) {
+      return (o.from || []).concat(o.to || []).some(function (c) { return c.zoneId === id; });
+    });
+    if (used) return toast("Зона используется в операциях", "err");
+    store.zones = store.zones.filter(function (z) { return z.id !== id; });
+    persist(); logAction("Удалена зона", id); toast("Удалено", "ok"); render();
   }
 
-  function openEmpModal(emp) {
-    var isEdit = !!emp;
-    emp = emp || { id: "", fio: "", tab: "", pos: "Кладовщик", role: "Кладовщик", active: true };
-    var body = '<form class="form-grid" id="empForm" autocomplete="off">' +
-      '<div class="field full"><label for="eFio">ФИО</label><input class="input" id="eFio" value="' + esc(emp.fio) + '" required></div>' +
-      '<div class="field"><label for="eTab">Табельный номер</label><input class="input" id="eTab" inputmode="numeric" value="' + esc(emp.tab) + '" required></div>' +
-      '<div class="field"><label for="ePos">Должность</label><input class="input" id="ePos" value="' + esc(emp.pos) + '"></div>' +
-      '<div class="field"><label for="eRole">Роль</label><select class="input" id="eRole"><option>Кладовщик</option><option' + (emp.role === "Руководитель" ? " selected" : "") + '>Руководитель</option></select></div>' +
-      '<div class="field"><label for="eActive">Статус</label><select class="input" id="eActive"><option value="1"' + (emp.active !== false ? " selected" : "") + '>Активен</option><option value="0"' + (emp.active === false ? " selected" : "") + ">Отключён</option></select></div>" +
-      '<div id="empError" class="modal-error full hidden"></div></form>';
-    var foot = '<button class="btn btn-ghost" type="button" data-close="1">Отмена</button><button class="btn btn-primary" type="button" id="saveEmp">Сохранить</button>';
-    openModal(isEdit ? "Изменить сотрудника" : "Новый сотрудник", body, foot);
-    document.getElementById("saveEmp").addEventListener("click", function () {
-      var fio = document.getElementById("eFio").value.trim();
-      var tab = document.getElementById("eTab").value.trim();
-      var err = document.getElementById("empError");
-      if (!fio || !tab) { err.textContent = "Заполните ФИО и табельный номер."; err.classList.remove("hidden"); return; }
-      var clash = store.employees.filter(function (e) { return e.tab === tab && e.id !== emp.id; })[0];
-      if (clash) { err.textContent = "Такой табельный номер уже есть у " + clash.fio + "."; err.classList.remove("hidden"); return; }
-      var data = {
-        id: emp.id || uid(), fio: fio, tab: tab,
-        pos: document.getElementById("ePos").value.trim() || "Кладовщик",
-        role: document.getElementById("eRole").value,
-        active: document.getElementById("eActive").value === "1"
-      };
-      if (isEdit) store.employees = store.employees.map(function (e) { return e.id === emp.id ? data : e; });
-      else store.employees.push(data);
-      persist(); closeModal(); toast("Сохранено"); fillLogin(); render();
-    });
+  /* ================= админ: каталог ================= */
+  function viewAdminCatalog() {
+    var rows = store.catalog.map(function (s) {
+      return "<tr><td><b>" + esc(s.label) + '</b><div class="sub">' + esc(s.type) + '</div></td><td>' + esc(s.gost) + '</td>' +
+        '<td class="num">' + s.d + '</td><td class="num">' + s.w + '</td><td class="num">' + s.kgm + '</td>' +
+        '<td><div class="actions"><button class="btn ghost sm" data-action="edit-size" data-id="' + esc(s.id) + '">' + icon("edit") + "</button>" +
+        '<button class="btn danger sm" data-action="del-size" data-id="' + esc(s.id) + '">' + icon("trash") + "</button></div></td></tr>";
+    }).join("");
+    return '<div class="toolbar no-print"><span class="badge info">' + store.catalog.length + " типоразмеров</span><div class=\"grow\"></div>" +
+      '<button class="btn primary" data-action="add-size">' + icon("plus") + "Добавить типоразмер</button></div>" +
+      '<div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Труба</th><th>ГОСТ</th><th class="num">Ø, мм</th><th class="num">Стенка, мм</th><th class="num">кг/м</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+  }
+  function sizeModal(id) {
+    var s = id ? sizeById(id) : { type: "Обсадная", d: 168, w: 8, gost: "ГОСТ 632-80" };
+    openModal('<div class="modal-head"><div><h3>' + (id ? "Изменить типоразмер" : "Новый типоразмер") + '</h3><p>Масса считается автоматически</p></div><button class="x" data-action="close-modal">×</button></div>' +
+      '<div class="modal-body"><div class="row3"><label class="field"><span>Тип</span><select id="sType"><option' + (s.type === "Обсадная" ? " selected" : "") + '>Обсадная</option><option' + (s.type === "Бурильная" ? " selected" : "") + '>Бурильная</option><option' + (s.type === "НКТ" ? " selected" : "") + '>НКТ</option><option' + (s.type !== "Обсадная" && s.type !== "Бурильная" && s.type !== "НКТ" ? " selected" : "") + '>Иное</option></select></label>' +
+      '<label class="field"><span>Диаметр, мм</span><input type="number" id="sD" value="' + s.d + '"></label>' +
+      '<label class="field"><span>Стенка, мм</span><input type="number" id="sW" step="0.1" value="' + s.w + '"></label></div>' +
+      '<label class="field"><span>ГОСТ</span><input id="sGost" value="' + esc(s.gost) + '"></label>' +
+      '<div class="note-line" id="sPreview"></div></div>' +
+      '<div class="modal-foot"><button class="btn ghost" data-action="close-modal">Отмена</button><button class="btn primary" data-action="save-size" data-id="' + esc(id || "") + '">Сохранить</button></div>', "sm");
+    updateSizePreview();
+  }
+  function updateSizePreview() {
+    var d = Number(el("sD") && el("sD").value), w = Number(el("sW") && el("sW").value);
+    var p = el("sPreview");
+    if (!p) return;
+    var kgm = d > w ? Math.round(0.02466 * w * (d - w) * 100) / 100 : 0;
+    p.innerHTML = "Масса: <b>" + kgm + " кг/м</b> · вес 1 км: <b>" + fmt1(kgm) + " т</b>";
+  }
+  function saveSize() {
+    var type = el("sType").value, d = Number(el("sD").value), w = Number(el("sW").value);
+    if (!(d > 0) || !(w > 0) || w >= d) return toast("Проверьте диаметр и стенку", "err");
+    var id = document.querySelector('[data-action="save-size"]').getAttribute("data-id");
+    var s = {
+      id: id || (type + "-" + d + "-" + w), type: type, d: d, w: w,
+      label: type + " Ø" + d + "×" + w,
+      kgm: Math.round(0.02466 * w * (d - w) * 100) / 100,
+      gost: el("sGost").value.trim()
+    };
+    if (id) {
+      var i = store.catalog.findIndex(function (x) { return x.id === id; });
+      store.catalog[i] = s;
+    } else {
+      if (sizeById(s.id)) return toast("Такой типоразмер уже есть", "err");
+      store.catalog.push(s);
+    }
+    persist(); logAction(id ? "Изменён типоразмер" : "Добавлен типоразмер", s.label); closeModal(); toast("Сохранено", "ok"); render();
+  }
+  function delSize(id) {
+    var used = store.ops.some(function (o) { return o.sizeId === id; });
+    if (used) return toast("Типоразмер используется в операциях", "err");
+    store.catalog = store.catalog.filter(function (s) { return s.id !== id; });
+    persist(); logAction("Удалён типоразмер", id); toast("Удалено", "ok"); render();
+  }
+
+  /* ================= админ: журнал ================= */
+  function viewAdminAudit() {
+    var rows = store.audit.map(function (a) {
+      return '<div class="audit-item"><time>' + fmtDateTime(a.ts) + '</time><div><span class="who">' + esc(a.user) + "</span> — " + esc(a.action) +
+        (a.details ? '<div class="hint">' + esc(a.details) + "</div>" : "") + "</div></div>";
+    }).join("");
+    return '<div class="card"><div class="card-head"><div><h3>Журнал действий</h3><div class="sub">последние ' + store.audit.length + " записей</div></div>" +
+      '<button class="btn ghost sm right" data-action="export">' + icon("download") + 'Экспорт</button></div><div class="card-body">' + rows + "</div></div>";
+  }
+
+  /* ================= профиль ================= */
+  function viewProfile() {
+    var myOps = store.ops.filter(function (o) { return o.user === session.fio; });
+    var meters = myOps.reduce(function (s, o) { return s + o.meters; }, 0);
+    var perms = permsOf(session);
+    var labels = {};
+    PERM_GROUPS.forEach(function (g) { g.items.forEach(function (i) { labels[i[0]] = i[1]; }); });
+    var recent = myOps.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6);
+    return '<div class="profile-grid"><div class="card profile-card"><div class="big-ava">' + esc(initials(session.fio)) + "</div>" +
+      "<h3>" + esc(session.fio) + '</h3><div class="role"><span class="badge ' + ROLE_BADGE[session.role] + '">' + esc(ROLE_LABELS[session.role]) + "</span></div>" +
+      '<p class="hint" style="margin-top:10px">' + esc(session.pos || "Сотрудник") + "<br>Табельный " + esc(session.tab) + "<br>" + esc(unitLabel(unitById(session.orgUnitId))) + "</p>" +
+      '<div class="stat-row"><div><b>' + myOps.length + "</b><span>операций</span></div><div><b>" + fmtLen(meters) + "</b><span>метров</span></div><div><b>" + perms.length + "</b><span>прав</span></div></div></div>" +
+      '<div><div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Мои полномочия</h3></div><div class="card-body"><div class="perm-list">' +
+      perms.map(function (p) { return '<span class="chip sm on">' + esc(labels[p] || p) + "</span>"; }).join("") + "</div></div></div>" +
+      '<div class="card"><div class="card-head"><h3>Мои последние операции</h3><button class="btn ghost sm right" data-nav="registry">Реестр</button></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Дата</th><th>Операция</th><th>Труба</th><th class="num">Метров</th></tr></thead><tbody>' +
+      (recent.map(function (o) {
+        return "<tr><td>" + fmtDate(o.date) + "</td><td>" + typeBadge(o.type) + "</td><td>" + esc(sizeLabel(o.sizeId)) + '</td><td class="num">' + fmtLen(o.meters) + "</td></tr>";
+      }).join("") || '<tr><td colspan="4" class="muted">Операций пока нет</td></tr>') + "</tbody></table></div></div></div></div>";
+  }
+
+  /* ================= уведомления ================= */
+  function notifIcon(kind) {
+    return kind === "ok" ? "check" : kind === "bad" ? "trash" : kind === "warn" ? "bell" : "bell";
+  }
+  function notifItem(n) {
+    return '<div class="notif' + (n.read ? "" : " unread") + '" data-notif="' + n.id + '"><span class="ni">' + icon(notifIcon(n.kind)) + "</span>" +
+      "<div><b>" + esc(n.title) + "</b><p>" + esc(n.text) + "</p></div><time>" + fmtDateTime(n.ts) + "</time></div>";
+  }
+  function viewNotifications() {
+    var list = store.notifications;
+    return '<div class="toolbar no-print"><div class="grow"></div><button class="btn ghost" data-action="mark-all-read">Прочитать все</button></div>' +
+      '<div class="card"><div class="card-head"><div><h3>Уведомления</h3><div class="sub">' + unreadCount() + " непрочитанных</div></div></div>" +
+      '<div class="card-body" style="padding:0">' + (list.length ? list.map(notifItem).join("") : '<div class="empty">' + icon("bell") + "<b>Пока тихо</b>Здесь появятся события системы</div>") + "</div></div>";
+  }
+  function paintNotifPanel() {
+    var list = store.notifications.slice(0, 20);
+    el("notifList").innerHTML = list.length ? list.map(notifItem).join("") : '<div class="empty">' + icon("bell") + "<b>Уведомлений нет</b></div>";
   }
 
   /* ================= экспорт / импорт ================= */
-  function download(name, text, type) {
-    var blob = new Blob([text], { type: type || "application/json;charset=utf-8" });
+  function exportData() {
+    var blob = new Blob([JSON.stringify(store, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    a.download = "uchet-trub-" + todayISO() + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    toast("Файл выгружен", "ok");
   }
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    download("uchet-trub-" + todayISO() + ".json", JSON.stringify(store, null, 2));
-    toast("Файл выгружен");
-  });
-  document.getElementById("importBtn").addEventListener("click", function () {
-    document.getElementById("importFile").click();
-  });
-  document.getElementById("importFile").addEventListener("change", function (ev) {
-    var file = ev.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var d = JSON.parse(reader.result);
-        if (!d || !Array.isArray(d.ops) || !Array.isArray(d.employees) || !Array.isArray(d.catalog)) throw new Error("bad");
-        if (!confirm("Заменить текущие данные данными из файла? Это действие необратимо.")) return;
-        store = d; persist(); toast("Данные загружены"); enterApp();
-      } catch (e) {
-        toast("Не удалось прочитать файл: ожидается JSON этой системы", true);
-      }
+  function importData() {
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.accept = ".json,application/json";
+    inp.onchange = function () {
+      var f = inp.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        try {
+          var d = JSON.parse(r.result);
+          if (!d.meta || !d.ops || !d.users || !d.catalog) throw new Error("bad");
+          store = d;
+          session = session ? (store.users.filter(function (x) { return x.tab === session.tab && x.active !== false; })[0] || null) : null;
+          persist();
+          logAction("Импорт базы", f.name);
+          notify("База восстановлена", "Импортирован файл " + f.name, "info");
+          closeModal();
+          if (session) showApp(); else logout();
+          toast("Данные импортированы", "ok");
+        } catch (e) { toast("Некорректный файл", "err"); }
+      };
+      r.readAsText(f);
     };
-    reader.readAsText(file);
-    ev.target.value = "";
-  });
+    inp.click();
+  }
 
-  /* ================= события оболочки ================= */
-  document.getElementById("quickAdd").addEventListener("click", function () { openOpModal(null); });
+  /* ================= панели ================= */
+  function closePanels() {
+    var np = el("notifPanel"), um = el("userMenu");
+    if (np) np.classList.remove("open");
+    if (um) um.classList.remove("open");
+  }
+  function togglePanel(id) {
+    var p = el(id), isOpen = p.classList.contains("open");
+    closePanels();
+    if (!isOpen) p.classList.add("open");
+  }
+  function openSidebar() { el("sidebar").classList.add("open"); el("scrim").classList.add("on"); }
+  function closeSidebar() { el("sidebar").classList.remove("open"); el("scrim").classList.remove("on"); }
 
-  document.addEventListener("click", function (e) {
-    var nav = e.target.closest("[data-nav]");
-    if (nav) { navigate(nav.getAttribute("data-nav")); return; }
-    var edit = e.target.closest("[data-op]");
-    if (edit) {
-      var op = store.ops.filter(function (o) { return o.id === edit.getAttribute("data-op"); })[0];
-      if (op) openOpModal(op);
-      return;
+  /* ================= события ================= */
+  function bindEvents() {
+    el("loginForm").addEventListener("submit", doLogin);
+    var gs = el("globalSearch");
+    if (gs) gs.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { state.search = this.value.trim(); go("search"); }
+    });
+    el("sbClose").addEventListener("click", closeSidebar);
+    el("scrim").addEventListener("click", closeSidebar);
+    el("hamburger").addEventListener("click", openSidebar);
+    el("bellBtn").addEventListener("click", function () { paintNotifPanel(); togglePanel("notifPanel"); });
+    el("userChip").addEventListener("click", function () { togglePanel("userMenu"); });
+    el("readAllBtn").addEventListener("click", markAllRead);
+
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      var close = t.closest("[data-close]");
+      if (close && !t.closest(".modal")) { closeModal(); return; }
+      var notif = t.closest("[data-notif]");
+      if (notif) { markRead(notif.getAttribute("data-notif")); return; }
+      if (!t.closest(".panel") && !t.closest("#bellBtn")) { var np = el("notifPanel"); if (np) np.classList.remove("open"); }
+      if (!t.closest(".menu") && !t.closest("#userChip")) { var um = el("userMenu"); if (um) um.classList.remove("open"); }
+
+      var navBtn = t.closest("[data-nav]");
+      if (navBtn) { go(navBtn.getAttribute("data-nav")); return; }
+      var mapCell = t.closest("[data-cellmap]");
+      if (mapCell) { state.map.sel = { zoneId: mapCell.getAttribute("data-zone"), cell: mapCell.getAttribute("data-cell") }; render(); return; }
+      var pageBtn = t.closest("[data-page]");
+      if (pageBtn && !pageBtn.disabled) { state.page = Number(pageBtn.getAttribute("data-page")); refreshRegistry(); return; }
+      var typeBtn = t.closest("[data-optype]");
+      if (typeBtn) { changeOpType(typeBtn.getAttribute("data-optype")); return; }
+      var cellBtn = t.closest("[data-cellpick]");
+      if (cellBtn) { toggleCell(cellBtn); return; }
+      var act = t.closest("[data-action]");
+      if (act) { handleAction(act); return; }
+      var menuBtn = t.closest("#userMenu [data-action]");
+      if (menuBtn) handleAction(menuBtn);
+    });
+
+    document.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t.matches("[data-reg]")) {
+        state.reg[t.getAttribute("data-reg")] = t.value;
+        state.page = 1;
+        refreshRegistry();
+      }
+      if (t.matches("[data-stock]")) { state.stock[t.getAttribute("data-stock")] = t.value; render(); }
+      if (t.matches("[data-map]")) { state.map[t.getAttribute("data-map")] = t.value; state.map.sel = null; render(); }
+      if (t.matches("[data-rep]")) { state.period[t.getAttribute("data-rep")] = t.value; render(); }
+      if (t.id === "opFromZone" || t.id === "opToZone") {
+        syncDraftFromDom();
+        if (t.id === "opFromZone") { state.opDraft.fromZone = t.value; state.opDraft.fromCells = []; }
+        else { state.opDraft.toZone = t.value; state.opDraft.toCells = []; }
+        renderOpModal();
+      }
+      if (t.id === "opSize" || t.id === "opMeters" || t.id === "opQty" || t.id === "opStatus") {
+        syncDraftFromDom();
+        var sum = el("opSummary"); if (sum) sum.innerHTML = opSummaryHtml(state.opDraft);
+      }
+      if (t.id === "uRole") {
+        var preset = ROLE_PRESETS[t.value] || [];
+        document.querySelectorAll("#uPerms input[data-perm]").forEach(function (c) {
+          c.checked = t.value === "admin" || preset.indexOf(c.getAttribute("data-perm")) > -1;
+        });
+      }
+      if (t.id === "sD" || t.id === "sW") updateSizePreview();
+    });
+
+    document.addEventListener("input", function (e) {
+      var t = e.target;
+      if (t.id === "opMeters" || t.id === "opQty") {
+        if (t.id === "opMeters") {
+          var mm = Number(t.value) || 0, qq = el("opQty");
+          if (qq && (!qq.value || Number(qq.value) === 0) && mm > 0) qq.value = Math.round(mm / 12);
+        }
+        syncDraftFromDom();
+        var sumEl = el("opSummary");
+        if (sumEl) sumEl.innerHTML = opSummaryHtml(state.opDraft);
+      }
+      if (t.matches('[data-reg="q"]')) {
+        state.reg.q = t.value;
+        clearTimeout(bindEvents._qt);
+        bindEvents._qt = setTimeout(function () { state.page = 1; refreshRegistry(); }, 220);
+      }
+      if (t.matches('[data-stock="q"]')) {
+        state.stock.q = t.value;
+        clearTimeout(bindEvents._st);
+        bindEvents._st = setTimeout(render, 220);
+      }
+      if (t.id === "searchMain") {
+        state.search = t.value;
+        clearTimeout(bindEvents._sr);
+        bindEvents._sr = setTimeout(render, 250);
+      }
+    });
+  }
+
+  function changeOpType(type) {
+    syncDraftFromDom();
+    var d = state.opDraft;
+    d.type = type;
+    d.fromCells = []; d.toCells = [];
+    d.fromZone = ""; d.toZone = "";
+    if (type === "from_shop") {
+      var shop = store.zones.filter(function (z) { return z.type === "shop"; })[0];
+      if (shop) d.fromZone = shop.id;
     }
-    var del = e.target.closest("[data-del]");
-    if (del) {
-      if (!isAdmin()) { toast("Удалять операции может только руководитель", true); return; }
-      if (!confirm("Удалить операцию без возможности отмены?")) return;
-      store.ops = store.ops.filter(function (o) { return o.id !== del.getAttribute("data-del"); });
-      persist(); toast("Операция удалена"); render();
+    if (type === "to_shop") {
+      var sh = store.zones.filter(function (z) { return z.type === "shop"; })[0];
+      if (sh) d.toZone = sh.id;
     }
-  });
+    if (type === "in" || type === "to_shop") d.status = "raw";
+    if (type === "from_shop" || type === "ship") d.status = "prepared";
+    renderOpModal();
+  }
+  function toggleCell(btn) {
+    var which = btn.getAttribute("data-cellpick"), cell = btn.getAttribute("data-cell");
+    var d = state.opDraft;
+    var arr = which === "from" ? d.fromCells : d.toCells;
+    var i = arr.indexOf(cell);
+    if (i > -1) arr.splice(i, 1); else arr.push(cell);
+    btn.classList.toggle("on");
+  }
+
+  function handleAction(btn) {
+    var a = btn.getAttribute("data-action");
+    var id = btn.getAttribute("data-id");
+    if (a === "new-op") return openOperation();
+    if (a === "edit-op") return openOperation(id);
+    if (a === "del-op") return askDeleteOp(id);
+    if (a === "confirm-del") return deleteOp(id);
+    if (a === "close-modal") return closeModal();
+    if (a === "save-op") return saveOperation();
+    if (a === "print") return window.print();
+    if (a === "export") return exportData();
+    if (a === "add-user") return userModal();
+    if (a === "edit-user") return userModal(id);
+    if (a === "save-user") return saveUser();
+    if (a === "del-user") return askDeleteUser(id);
+    if (a === "confirm-del-user") return delUser(id);
+    if (a === "add-unit") return unitModal();
+    if (a === "edit-unit") return unitModal(id);
+    if (a === "save-unit") return saveUnit();
+    if (a === "del-unit") return delUnit(id);
+    if (a === "add-territory") return territoryModal();
+    if (a === "save-territory") return saveTerritory();
+    if (a === "add-zone") return zoneModal("", id);
+    if (a === "edit-zone") return zoneModal(id);
+    if (a === "save-zone") return saveZone();
+    if (a === "del-zone") return delZone(id);
+    if (a === "add-size") return sizeModal();
+    if (a === "edit-size") return sizeModal(id);
+    if (a === "save-size") return saveSize();
+    if (a === "del-size") return delSize(id);
+    if (a === "mark-all-read") return markAllRead();
+    if (a === "profile") return go("profile");
+    if (a === "notifications") return go("notifications");
+    if (a === "help") return go("help");
+    if (a === "logout") return logout();
+  }
+
+  function markRead(id) {
+    var n = store.notifications.filter(function (x) { return x.id === id; })[0];
+    if (!n) return;
+    n.read = true;
+    persist();
+    paintBell();
+    if (state.route === "notifications") render();
+    paintNotifPanel();
+  }
+  function markAllRead() {
+    store.notifications.forEach(function (n) { n.read = true; });
+    persist(); paintBell(); paintNotifPanel();
+    if (state.route === "notifications") render();
+    toast("Все уведомления прочитаны", "ok");
+  }
+
+  function afterRender() {
+    var bars = document.querySelectorAll(".bar-fill[data-w]");
+    bars.forEach(function (b) {
+      b.style.width = "0%";
+      setTimeout(function () { b.style.width = b.getAttribute("data-w") + "%"; }, 30);
+    });
+    var gs = el("globalSearch");
+    if (gs) gs.value = state.route === "search" ? state.search : "";
+  }
 
   /* ================= старт ================= */
-  fillLogin();
-  if (session) {
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    enterApp();
+  function init() {
+    fillLogin();
+    bindEvents();
+    if (session) {
+      showApp();
+    } else {
+      el("loginScreen").style.display = "grid";
+    }
   }
+
+  init();
 })();
