@@ -300,7 +300,7 @@
     period: { from: "", to: "" },
     reg: { from: "", to: "", type: "", unit: "", status: "", q: "" },
     page: 1,
-    map: { territoryId: "t_by", unitId: "", d: "" },
+    map: { territoryId: "t_by", unitId: "", d: "", view: { k: 1, x: 0, y: 0, initialized: false } },
     stock: { unit: "", status: "", q: "" },
     search: "",
     adminTab: "users",
@@ -557,6 +557,7 @@
   function paintNav() { el("nav").innerHTML = navHtml(); }
 
   function go(route) {
+    if (state.route === "map" && route !== "map") resetMapView();
     var item = null;
     NAV.forEach(function (g) { g.items.forEach(function (i) { if (i.route === route) item = i; }); });
     if (item && item.perm && !can(item.perm)) { toast("Нет доступа к разделу", "err"); return; }
@@ -600,14 +601,70 @@
     else render();
   }
   function refreshMap() {
-    var tmp = document.createElement("div");
-    tmp.innerHTML = viewMap();
-    var layout = tmp.querySelector(".map-layout");
-    var cur = document.querySelector(".map-layout");
-    if (layout && cur) cur.parentNode.replaceChild(layout, cur);
-    var nb = tmp.querySelectorAll(".toolbar .badge");
-    var cb = document.querySelectorAll(".toolbar .badge");
-    for (var i = 0; i < nb.length && i < cb.length; i++) cb[i].parentNode.replaceChild(nb[i], cb[i]);
+    var c = el("mapCanvas");
+    if (c) c.innerHTML = mapBlocksHtml();
+    var s = el("mapSide");
+    if (s) s.innerHTML = mapSideHtml();
+    var b = el("mapBadge");
+    if (b) {
+      var t = totals(mapRows());
+      b.textContent = fmtLen(t.meters) + " · " + fmtTon(t.kg);
+    }
+    applyMapTransform();
+  }
+  function fitMap() {
+    var stage = el("mapStage");
+    if (!stage) return;
+    var sw = stage.clientWidth, sh = stage.clientHeight;
+    var fitK = Math.min(sw / MAP_W, sh / MAP_H) * 0.96;
+    var k = sw < 620 ? fitK : Math.max(fitK, 0.5);
+    var x, y;
+    if (sw < 620) { x = (sw - MAP_W * k) / 2; y = (sh - MAP_H * k) / 2; }
+    else { x = 20 - 80 * k; y = 10 - 120 * k; }
+    state.map.view = { k: k, x: x, y: y, initialized: true };
+    clampMapView();
+    applyMapTransform();
+  }
+  function applyMapTransform() {
+    var c = el("mapCanvas");
+    if (!c) return;
+    var v = state.map.view;
+    c.style.transform = "translate(" + v.x + "px," + v.y + "px) scale(" + v.k + ")";
+  }
+  function clampMapView() {
+    var stage = el("mapStage");
+    if (!stage) return;
+    var v = state.map.view, sw = stage.clientWidth, sh = stage.clientHeight;
+    var cw = MAP_W * v.k, ch = MAP_H * v.k;
+    v.x = cw <= sw ? (sw - cw) / 2 : Math.min(0, Math.max(sw - cw, v.x));
+    v.y = ch <= sh ? (sh - ch) / 2 : Math.min(0, Math.max(sh - ch, v.y));
+  }
+  function zoomMapAt(cx, cy, factor) {
+    var stage = el("mapStage");
+    if (!stage) return;
+    var rect = stage.getBoundingClientRect();
+    var px = cx - rect.left, py = cy - rect.top;
+    var v = state.map.view;
+    var minK = Math.min(stage.clientWidth / MAP_W, stage.clientHeight / MAP_H) * 0.8;
+    var k2 = Math.max(minK, Math.min(3, v.k * factor));
+    if (k2 === v.k) return;
+    v.x = px - (px - v.x) * (k2 / v.k);
+    v.y = py - (py - v.y) * (k2 / v.k);
+    v.k = k2;
+    clampMapView();
+    applyMapTransform();
+  }
+  function zoomMapCenter(factor) {
+    var stage = el("mapStage");
+    if (!stage) return;
+    var r = stage.getBoundingClientRect();
+    zoomMapAt(r.left + stage.clientWidth / 2, r.top + stage.clientHeight / 2, factor);
+  }
+  function resetMapView() {
+    state.map.sel = null;
+    state.map.view = { k: 1, x: 0, y: 0, initialized: false };
+    var tip = el("mapTip");
+    if (tip) tip.classList.remove("on");
   }
   function refreshReports() {
     var tmp = document.createElement("div");
@@ -1136,7 +1193,34 @@
     var b = el("stockBody"); if (b) b.innerHTML = stockBodyHtml(list);
   }
 
-  /* ================= карта: данные ячейки ================= */
+  /* ================= интерактивная карта ================= */
+  var MAP_W = 2400, MAP_H = 1500;
+  var MAP_BLOCKS = [
+    { zoneId: "z_s1", x: 80, y: 120, w: 820, h: 300 },
+    { zoneId: "z_s2", x: 80, y: 470, w: 820, h: 300 },
+    { zoneId: "z_s3", x: 80, y: 820, w: 820, h: 300 },
+    { zoneId: "z_s4", x: 1000, y: 120, w: 820, h: 300 },
+    { zoneId: "z_s5", x: 1000, y: 470, w: 820, h: 300 },
+    { zoneId: "z_pvc", x: 1000, y: 820, w: 820, h: 300 },
+    { zoneId: "z_shop", x: 80, y: 1170, w: 820, h: 230 }
+  ];
+  var MAP_AREAS = [
+    { label: "Сургут №3", x: 1880, y: 120, w: 440, h: 260 },
+    { label: "Сургут №4", x: 1880, y: 420, w: 440, h: 260 },
+    { label: "АБК ЦОТ", x: 1880, y: 720, w: 440, h: 170 },
+    { label: "АБК ЦБТ", x: 1880, y: 930, w: 440, h: 170 },
+    { label: "АБК ЦНКТ", x: 1880, y: 1140, w: 440, h: 170 },
+    { label: "ПГ", x: 1000, y: 1170, w: 150, h: 230 },
+    { label: "Стоянка", x: 1180, y: 1170, w: 280, h: 230, cls: "blue" },
+    { label: "Площадка открытого хранения", x: 1500, y: 1170, w: 820, h: 230, cls: "hatch" }
+  ];
+  var MAP_ROADS = [
+    { x: 40, y: 430, w: 2320, h: 24 },
+    { x: 40, y: 780, w: 2320, h: 24 },
+    { x: 40, y: 1130, w: 2320, h: 24 },
+    { x: 920, y: 40, w: 26, h: 1420 },
+    { x: 1840, y: 40, w: 26, h: 1420 }
+  ];
   function mapFilter() {
     var diam = state.map.d;
     return function (op) {
@@ -1197,26 +1281,21 @@
     var d = el("mapDetail");
     if (d) d.innerHTML = mapDetailHtml(zoneId, cell);
   }
-
-  /* ================= схема склада ================= */
-  function viewMap() {
-    var territory = terrById(state.map.territoryId) || store.territories[0];
-    var zones = store.zones.filter(function (z) { return z.territoryId === (territory ? territory.id : ""); });
-    var diam = state.map.d;
-    var mf = mapFilter();
-    var occ = occupancyMap(mf);
-    var rows = mapRows();
-    var t = totals(rows);
-    var dSet = {};
-    store.catalog.forEach(function (s) { if (isPipe(s) && s.d) dSet[s.d] = 1; });
-    var diams = Object.keys(dSet).map(Number).sort(function (a, b) { return a - b; });
-
-    var grid = zones.map(function (z) {
-      var cells = cellsOf(z.id);
-      var cap = capacityOf(z);
-      var zoneM = 0;
-      cells.forEach(function (c) { zoneM += Math.max(0, occupancyCell(occ, z.id, c)); });
-      var zp = pct(zoneM, cap * cells.length);
+  function mapBlocksHtml() {
+    var occ = occupancyMap(mapFilter());
+    var html = '';
+    html += MAP_ROADS.map(function (r) {
+      return '<div class="map-road" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px"></div>';
+    }).join("");
+    html += MAP_AREAS.map(function (a) {
+      return '<div class="map-area ' + (a.cls || "") + '" style="left:' + a.x + 'px;top:' + a.y + 'px;width:' + a.w + 'px;height:' + a.h + 'px">' + esc(a.label) + "</div>";
+    }).join("");
+    MAP_BLOCKS.forEach(function (b) {
+      var z = zoneById(b.zoneId);
+      if (!z) return;
+      var cells = cellsOf(z.id), cap = capacityOf(z), total = 0;
+      cells.forEach(function (c) { total += Math.max(0, occupancyCell(occ, z.id, c)); });
+      var zp = pct(total, cap * cells.length);
       var cellHtml = cells.map(function (c) {
         var m = Math.max(0, occupancyCell(occ, z.id, c));
         var p = pct(m, cap);
@@ -1229,20 +1308,43 @@
           '<span class="fillbar"><i style="width:' + Math.min(100, p) + '%"></i></span>' +
           (p >= 80 ? '<span class="full-tag">заполнено</span>' : "") + "</button>";
       }).join("");
-      return '<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>' + esc(z.name) + '</h3><div class="sub">' +
-        zoneTypeLabel(z.type) + " · " + cells.length + " ячеек · " + fmtLen(cap) + " на ячейку</div></div>" +
-        '<span class="badge ' + (zp > 80 ? "bad" : zp > 40 ? "warn" : "ok") + ' right">' + zp + "% занято</span></div>" +
-        '<div class="card-body"><div class="map-grid">' + cellHtml + "</div></div></div>";
-    }).join("");
-
-    var topCells = [];
-    Object.keys(occ).forEach(function (k) {
-      if (occ[k] > 0) topCells.push({ k: k, m: occ[k] });
+      html += '<div class="rack-block ' + z.type + '" style="left:' + b.x + 'px;top:' + b.y + 'px;width:' + b.w + 'px;height:' + b.h + 'px">' +
+        '<div class="rack-head"><b>' + esc(z.name) + '</b><span class="badge ' + (zp > 80 ? "bad" : zp > 40 ? "warn" : "ok") + '">' + zp + "%</span></div>" +
+        '<div class="rack-cells" style="grid-template-columns:repeat(' + cells.length + ',1fr)">' + cellHtml + "</div></div>";
     });
-    topCells.sort(function (a, b) { return b.m - a.m; });
+    return html;
+  }
+  function mapSideHtml() {
+    var rows = mapRows();
+    var t = totals(rows);
+    var occ = occupancyMap(mapFilter());
+    var topCells = Object.keys(occ).filter(function (k) { return occ[k] > 0; })
+      .map(function (k) { return { k: k, m: occ[k] }; })
+      .sort(function (a, b) { return b.m - a.m; });
     var sel = state.map.sel;
-    var selHtml = '<div id="mapDetail">' + (sel ? mapDetailHtml(sel.zoneId, sel.cell) : '<div class="hint">Нажмите на ячейку, чтобы увидеть, что внутри</div>') + "</div>";
+    var detail = sel ? mapDetailHtml(sel.zoneId, sel.cell) : '<div class="hint">Нажмите на ячейку, чтобы увидеть, что внутри</div>';
+    return '<div class="card"><div class="card-head"><h3>Сводка</h3></div><div class="card-body">' +
+      '<div class="stat"><span>Метраж</span><b>' + fmtLen(t.meters) + "</b></div>" +
+      '<div class="stat"><span>Вес</span><b>' + fmtTon(t.kg) + "</b></div>" +
+      '<div class="stat"><span>Позиций</span><b>' + fmtInt(t.qty) + "</b></div>" +
+      '<div class="stat"><span>Средняя длина</span><b>' + (t.qty ? fmt1(avgLength(t)) + " м" : "—") + "</b></div>" +
+      '<div class="stat"><span>Занято ячеек</span><b>' + fmtInt(topCells.length) + "</b></div>" +
+      '<div id="mapDetail">' + detail + "</div></div></div>" +
+      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Самые заполненные</h3></div><div class="card-body">' +
+      (topCells.slice(0, 6).map(function (x) {
+        var p = x.k.split("|"), z = zoneById(p[0]);
+        return '<div class="stat"><span>' + esc((z ? z.name : "?") + " · " + p[1]) + "</span><b>" + fmtLen(x.m) + "</b></div>";
+      }).join("") || '<div class="muted">Пусто</div>') + "</div></div>";
+  }
 
+  /* ================= схема склада ================= */
+  function viewMap() {
+    var territory = terrById(state.map.territoryId) || store.territories[0];
+    var diam = state.map.d;
+    var t = totals(mapRows());
+    var dSet = {};
+    store.catalog.forEach(function (s) { if (isPipe(s) && s.d) dSet[s.d] = 1; });
+    var diams = Object.keys(dSet).map(Number).sort(function (a, b) { return a - b; });
     return '<div class="toolbar no-print">' +
       '<select data-map="territory" style="max-width:200px">' + store.territories.map(function (x) {
         return '<option value="' + x.id + '"' + (territory && x.id === territory.id ? " selected" : "") + ">" + esc(x.name) + "</option>";
@@ -1251,26 +1353,23 @@
       '<select data-map="d" style="max-width:170px"><option value="">Все диаметры</option>' + diams.map(function (d) {
         return '<option value="' + d + '"' + (String(d) === String(diam) ? " selected" : "") + ">Ø" + d + "</option>";
       }).join("") + "</select>" +
-      '<div class="grow"></div><span class="badge info">' + fmtLen(t.meters) + " · " + fmtTon(t.kg) + "</span></div>" +
-      '<div class="map-layout"><div id="mapZones">' + (grid || '<div class="empty">Нет зон на территории</div>') +
-      '<div class="legend"><span><i style="background:#f8fafd;border-color:#dfe7f2"></i>пусто</span>' +
+      '<div class="grow"></div><span class="badge info" id="mapBadge">' + fmtLen(t.meters) + " · " + fmtTon(t.kg) + "</span></div>" +
+      '<div class="map-layout"><div>' +
+      '<div class="map-stage" id="mapStage">' +
+      '<div class="map-canvas" id="mapCanvas">' + mapBlocksHtml() + "</div>" +
+      '<div class="map-zoom">' +
+      '<button type="button" data-mapzoom="in" title="Приблизить">+</button>' +
+      '<button type="button" data-mapzoom="out" title="Отдалить">−</button>' +
+      '<button type="button" data-mapzoom="reset" title="Сброс">⟲</button></div>' +
+      '<div class="map-hint">Колесо — масштаб · перетаскивание — сдвиг</div></div>' +
+      '<div class="map-legend">' +
+      '<span><i style="background:#f8fafd;border-color:#dfe7f2"></i>пусто</span>' +
       '<span><i style="background:#dcfce7;border-color:#a7e3bd"></i>до 40%</span>' +
       '<span><i style="background:#fef3c7;border-color:#f5cf7c"></i>40–80%</span>' +
       '<span><i style="background:#ffe4e6;border-color:#f9b4c0"></i>заполнено</span>' +
       '<span><i style="background:#f3e8ff;border-color:#d8b4fe"></i>ПВХ</span>' +
       '<span><i style="background:#dbeafe;border-color:#bfdbfe"></i>цех</span></div></div>' +
-      '<div class="map-side"><div class="card"><div class="card-head"><h3>Сводка</h3></div><div class="card-body">' +
-      '<div class="stat"><span>Метраж</span><b>' + fmtLen(t.meters) + "</b></div>" +
-      '<div class="stat"><span>Вес</span><b>' + fmtTon(t.kg) + "</b></div>" +
-      '<div class="stat"><span>Труб</span><b>' + fmtInt(t.qty) + "</b></div>" +
-      '<div class="stat"><span>Средняя длина</span><b>' + (t.qty ? fmt1(avgLength(t)) + " м" : "—") + "</b></div>" +
-      '<div class="stat"><span>Занято ячеек</span><b>' + fmtInt(topCells.length) + "</b></div>" +
-      selHtml + "</div></div>" +
-      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Самые заполненные</h3></div><div class="card-body">' +
-      (topCells.slice(0, 6).map(function (x) {
-        var p = x.k.split("|"), z = zoneById(p[0]);
-        return '<div class="stat"><span>' + esc((z ? z.name.replace("Автокрановая площадка временного хранения ", "") : "?") + " · " + p[1]) + "</span><b>" + fmtLen(x.m) + "</b></div>";
-      }).join("") || '<div class="muted">Пусто</div>') + "</div></div></div></div>";
+      '<div class="map-side" id="mapSide">' + mapSideHtml() + "</div></div>";
   }
 
   /* ================= отчёты ================= */
@@ -1919,6 +2018,14 @@
 
       var navBtn = t.closest("[data-nav]");
       if (navBtn) { go(navBtn.getAttribute("data-nav")); return; }
+      var zoomBtn = t.closest("[data-mapzoom]");
+      if (zoomBtn) {
+        var mode = zoomBtn.getAttribute("data-mapzoom");
+        if (mode === "in") zoomMapCenter(1.2);
+        else if (mode === "out") zoomMapCenter(1 / 1.2);
+        else fitMap();
+        return;
+      }
       var mapCell = t.closest("[data-cellmap]");
       if (mapCell) { selectMapCell(mapCell.getAttribute("data-zone"), mapCell.getAttribute("data-cell")); return; }
       var pageBtn = t.closest("[data-page]");
@@ -1955,6 +2062,46 @@
       if (e.relatedTarget && c.contains(e.relatedTarget)) return;
       var tip = el("mapTip");
       if (tip) tip.classList.remove("on");
+    });
+
+    document.addEventListener("wheel", function (e) {
+      var stage = e.target.closest("#mapStage");
+      if (!stage) return;
+      e.preventDefault();
+      zoomMapAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    }, { passive: false });
+
+    var mapDrag = null;
+    document.addEventListener("pointerdown", function (e) {
+      var stage = e.target.closest("#mapStage");
+      if (!stage || e.target.closest(".map-zoom")) return;
+      mapDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, vx: state.map.view.x, vy: state.map.view.y };
+      stage.classList.add("dragging");
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    document.addEventListener("pointermove", function (e) {
+      if (!mapDrag || e.pointerId !== mapDrag.id) return;
+      var v = state.map.view;
+      v.x = mapDrag.vx + (e.clientX - mapDrag.x);
+      v.y = mapDrag.vy + (e.clientY - mapDrag.y);
+      clampMapView();
+      applyMapTransform();
+    });
+    document.addEventListener("pointerup", function () {
+      if (!mapDrag) return;
+      mapDrag = null;
+      var stage = el("mapStage");
+      if (stage) stage.classList.remove("dragging");
+    });
+    document.addEventListener("pointercancel", function () {
+      mapDrag = null;
+      var stage = el("mapStage");
+      if (stage) stage.classList.remove("dragging");
+    });
+    window.addEventListener("resize", function () {
+      if (state.route !== "map") return;
+      clampMapView();
+      applyMapTransform();
     });
 
     document.addEventListener("change", function (e) {
@@ -2134,6 +2281,13 @@
     });
     var gs = el("globalSearch");
     if (gs) gs.value = state.route === "search" ? state.search : "";
+    if (state.route === "map") {
+      var stage = el("mapStage");
+      if (stage) {
+        if (!state.map.view.initialized) fitMap();
+        else applyMapTransform();
+      }
+    }
   }
 
   /* ================= старт ================= */
