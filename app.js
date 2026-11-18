@@ -1194,29 +1194,33 @@
   }
 
   /* ================= интерактивная карта ================= */
-  var MAP_W = 3280, MAP_H = 960;
-  var MAP_RACKS = [
-    { id: "z_s1", x: 612, y: 274, w: 338, h: 28 },
-    { id: "z_s2", x: 464, y: 324, w: 342, h: 60 },
-    { id: "z_s3", x: 616, y: 384, w: 242, h: 40 },
-    { id: "z_s4", x: 1858, y: 326, w: 284, h: 54 },
-    { id: "z_s5", x: 2128, y: 362, w: 326, h: 52 },
-    { id: "pr1", x: 626, y: 428, w: 220, h: 34 },
-    { id: "pr2", x: 1368, y: 316, w: 124, h: 24 },
-    { id: "pr3", x: 1368, y: 384, w: 234, h: 28 },
-    { id: "pr4", x: 2600, y: 312, w: 312, h: 36 },
-    { id: "pr5", x: 2568, y: 376, w: 242, h: 64 },
-    { id: "z_pvc", x: 2630, y: 592, w: 112, h: 62 }
+  var MAP_W = 2400, MAP_H = 1500;
+  var MAP_BLOCKS = [
+    { zoneId: "z_s1", x: 80, y: 120, w: 820, h: 300 },
+    { zoneId: "z_s2", x: 80, y: 470, w: 820, h: 300 },
+    { zoneId: "z_s3", x: 80, y: 820, w: 820, h: 300 },
+    { zoneId: "z_s4", x: 1000, y: 120, w: 820, h: 300 },
+    { zoneId: "z_s5", x: 1000, y: 470, w: 820, h: 300 },
+    { zoneId: "z_pvc", x: 1000, y: 820, w: 820, h: 300 },
+    { zoneId: "z_shop", x: 80, y: 1170, w: 820, h: 230 }
   ];
-  function ensurePhotoZones() {
-    var changed = false;
-    MAP_RACKS.forEach(function (r, i) {
-      if (zoneById(r.id)) return;
-      store.zones.push({ id: r.id, territoryId: "t_by", name: "Стеллаж " + (i + 1), type: "rack", cells: 10, capacity: 120, photo: true });
-      changed = true;
-    });
-    if (changed) persist();
-  }
+  var MAP_AREAS = [
+    { label: "Сургут №3", x: 1880, y: 120, w: 440, h: 260 },
+    { label: "Сургут №4", x: 1880, y: 420, w: 440, h: 260 },
+    { label: "АБК ЦОТ", x: 1880, y: 720, w: 440, h: 170 },
+    { label: "АБК ЦБТ", x: 1880, y: 930, w: 440, h: 170 },
+    { label: "АБК ЦНКТ", x: 1880, y: 1140, w: 440, h: 170 },
+    { label: "ПГ", x: 1000, y: 1170, w: 150, h: 230 },
+    { label: "Стоянка", x: 1180, y: 1170, w: 280, h: 230, cls: "blue" },
+    { label: "Площадка открытого хранения", x: 1500, y: 1170, w: 820, h: 230, cls: "hatch" }
+  ];
+  var MAP_ROADS = [
+    { x: 40, y: 430, w: 2320, h: 24 },
+    { x: 40, y: 780, w: 2320, h: 24 },
+    { x: 40, y: 1130, w: 2320, h: 24 },
+    { x: 920, y: 40, w: 26, h: 1420 },
+    { x: 1840, y: 40, w: 26, h: 1420 }
+  ];
   function mapFilter() {
     var diam = state.map.d;
     return function (op) {
@@ -1279,21 +1283,34 @@
   }
   function mapBlocksHtml() {
     var occ = occupancyMap(mapFilter());
-    var html = '<img class="map-photo" src="map-scheme.jpg" alt="Схема мест хранения ТМЦ">';
-    MAP_RACKS.forEach(function (r) {
-      var z = zoneById(r.id);
+    var html = '';
+    html += MAP_ROADS.map(function (r) {
+      return '<div class="map-road" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px"></div>';
+    }).join("");
+    html += MAP_AREAS.map(function (a) {
+      return '<div class="map-area ' + (a.cls || "") + '" style="left:' + a.x + 'px;top:' + a.y + 'px;width:' + a.w + 'px;height:' + a.h + 'px">' + esc(a.label) + "</div>";
+    }).join("");
+    MAP_BLOCKS.forEach(function (b) {
+      var z = zoneById(b.zoneId);
       if (!z) return;
-      var cells = cellsOf(z.id), cap = capacityOf(z);
+      var cells = cellsOf(z.id), cap = capacityOf(z), total = 0;
+      cells.forEach(function (c) { total += Math.max(0, occupancyCell(occ, z.id, c)); });
+      var zp = pct(total, cap * cells.length);
       var cellHtml = cells.map(function (c) {
         var m = Math.max(0, occupancyCell(occ, z.id, c));
         var p = pct(m, cap);
         var cls = fillClass(p);
         if (z.type === "pvc" && !m) cls = "pvc";
+        if (z.type === "shop" && !m) cls = "shop";
         var isSel = state.map.sel && state.map.sel.zoneId === z.id && state.map.sel.cell === c;
-        return '<button type="button" class="map-cell ' + cls + (isSel ? " sel" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" aria-label="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '"></button>';
+        return '<button type="button" class="map-cell ' + cls + (p >= 80 ? " full" : "") + (isSel ? " sel" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" aria-label="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '">' +
+          '<span class="code">' + esc(c) + '</span><span class="m">' + (m ? fmtLen(m) : "0") + "</span>" +
+          '<span class="fillbar"><i style="width:' + Math.min(100, p) + '%"></i></span>' +
+          (p >= 80 ? '<span class="full-tag">заполнено</span>' : "") + "</button>";
       }).join("");
-      html += '<div class="photo-rack" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px">' +
-        '<div class="photo-cells">' + cellHtml + "</div></div>";
+      html += '<div class="rack-block ' + z.type + '" style="left:' + b.x + 'px;top:' + b.y + 'px;width:' + b.w + 'px;height:' + b.h + 'px">' +
+        '<div class="rack-head"><b>' + esc(z.name) + '</b><span class="badge ' + (zp > 80 ? "bad" : zp > 40 ? "warn" : "ok") + '">' + zp + "%</span></div>" +
+        '<div class="rack-cells" style="grid-template-columns:repeat(' + cells.length + ',1fr)">' + cellHtml + "</div></div>";
     });
     return html;
   }
@@ -1350,7 +1367,8 @@
       '<span><i style="background:#dcfce7;border-color:#a7e3bd"></i>до 40%</span>' +
       '<span><i style="background:#fef3c7;border-color:#f5cf7c"></i>40–80%</span>' +
       '<span><i style="background:#ffe4e6;border-color:#f9b4c0"></i>заполнено</span>' +
-      '<span><i style="background:#f3e8ff;border-color:#d8b4fe"></i>ПВХ</span></div></div>' +
+      '<span><i style="background:#f3e8ff;border-color:#d8b4fe"></i>ПВХ</span>' +
+      '<span><i style="background:#dbeafe;border-color:#bfdbfe"></i>цех</span></div></div>' +
       '<div class="map-side" id="mapSide">' + mapSideHtml() + "</div></div>";
   }
 
@@ -2273,8 +2291,18 @@
   }
 
   /* ================= старт ================= */
+  function cleanupPhotoZones() {
+    var used = {};
+    store.ops.forEach(function (o) {
+      (o.from || []).forEach(function (x) { used[x.zoneId] = 1; });
+      (o.to || []).forEach(function (x) { used[x.zoneId] = 1; });
+    });
+    var before = store.zones.length;
+    store.zones = store.zones.filter(function (z) { return !z.photo || used[z.id]; });
+    if (store.zones.length !== before) persist();
+  }
   function init() {
-    ensurePhotoZones();
+    cleanupPhotoZones();
     fillLogin();
     bindEvents();
     if (session) {
