@@ -878,6 +878,7 @@
       '<input type="date" data-reg="from" value="' + esc(f.from) + '" title="С даты">' +
       '<input type="date" data-reg="to" value="' + esc(f.to) + '" title="По дату">' +
       '<div class="grow"></div>' +
+      '<button class="btn ghost" data-action="export-csv">CSV</button>' +
       (can("op.create") ? '<button class="btn primary" data-action="new-op">' + icon("plus") + "Операция</button>" : "") +
       "</div>" +
       '<div class="card"><div class="card-head"><div><h3>Все операции</h3><div class="sub">найдено <b id="regCount">' + ops.length + "</b></div></div></div>" +
@@ -1996,6 +1997,24 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     toast("Файл выгружен", "ok");
   }
+  function csvCell(v) {
+    return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  }
+  function exportCsv() {
+    var rows = [["Дата", "Тип", "Оргединица", "Позиция", "Номенклатурный номер", "Метров", "Штук", "Статус", "Откуда", "Куда", "Завод", "Примечание", "Сотрудник"]];
+    opsFiltered().forEach(function (o) {
+      var u = unitById(o.orgUnitId);
+      rows.push([o.date, typeLabel(o.type), u ? u.code : "", sizeLabel(o.sizeId), o.nomen || "", o.meters, o.qty, statusLabel(o.status), addrText(o.from), addrText(o.to), o.plant || "", o.note || "", o.user || ""]);
+    });
+    var csv = rows.map(function (r) { return r.map(csvCell).join(";"); }).join("\r\n");
+    var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "operacii-" + todayISO() + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    toast("CSV выгружен", "ok");
+  }
   function importData() {
     var inp = document.createElement("input");
     inp.type = "file"; inp.accept = ".json,application/json";
@@ -2263,6 +2282,7 @@
     var a = btn.getAttribute("data-action");
     var id = btn.getAttribute("data-id");
     if (a === "reload-page") return location.reload();
+    if (a === "export-csv") return exportCsv();
     if (a === "undo") return undoLast();
     if (a === "new-op") return openOperation();
     if (a === "edit-op") return openOperation(id);
