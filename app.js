@@ -618,9 +618,8 @@
     var sw = stage.clientWidth, sh = stage.clientHeight;
     var fitK = Math.min(sw / MAP_W, sh / MAP_H) * 0.96;
     var k = sw < 620 ? fitK : Math.max(fitK, 0.5);
-    var x, y;
-    if (sw < 620) { x = (sw - MAP_W * k) / 2; y = (sh - MAP_H * k) / 2; }
-    else { x = 20 - 80 * k; y = 10 - 120 * k; }
+    var x = sw < 620 ? (sw - MAP_W * k) / 2 : 0;
+    var y = (sh - MAP_H * k) / 2;
     state.map.view = { k: k, x: x, y: y, initialized: true };
     clampMapView();
     applyMapTransform();
@@ -1194,7 +1193,7 @@
   }
 
   /* ================= интерактивная карта ================= */
-  var MAP_W = 2400, MAP_H = 1500;
+  var MAP_W = 2976, MAP_H = 842;
   var MAP_BLOCKS = [
     { zoneId: "z_s1", x: 80, y: 120, w: 820, h: 300 },
     { zoneId: "z_s2", x: 80, y: 470, w: 820, h: 300 },
@@ -1282,37 +1281,7 @@
     if (d) d.innerHTML = mapDetailHtml(zoneId, cell);
   }
   function mapBlocksHtml() {
-    var occ = occupancyMap(mapFilter());
-    var html = '';
-    html += MAP_ROADS.map(function (r) {
-      return '<div class="map-road" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px"></div>';
-    }).join("");
-    html += MAP_AREAS.map(function (a) {
-      return '<div class="map-area ' + (a.cls || "") + '" style="left:' + a.x + 'px;top:' + a.y + 'px;width:' + a.w + 'px;height:' + a.h + 'px">' + esc(a.label) + "</div>";
-    }).join("");
-    MAP_BLOCKS.forEach(function (b) {
-      var z = zoneById(b.zoneId);
-      if (!z) return;
-      var cells = cellsOf(z.id), cap = capacityOf(z), total = 0;
-      cells.forEach(function (c) { total += Math.max(0, occupancyCell(occ, z.id, c)); });
-      var zp = pct(total, cap * cells.length);
-      var cellHtml = cells.map(function (c) {
-        var m = Math.max(0, occupancyCell(occ, z.id, c));
-        var p = pct(m, cap);
-        var cls = fillClass(p);
-        if (z.type === "pvc" && !m) cls = "pvc";
-        if (z.type === "shop" && !m) cls = "shop";
-        var isSel = state.map.sel && state.map.sel.zoneId === z.id && state.map.sel.cell === c;
-        return '<button type="button" class="map-cell ' + cls + (p >= 80 ? " full" : "") + (isSel ? " sel" : "") + '" data-cellmap="1" data-zone="' + z.id + '" data-cell="' + esc(c) + '" aria-label="' + esc(z.name + " · " + c + " · " + fmtLen(m) + " из " + fmtLen(cap)) + '">' +
-          '<span class="code">' + esc(c) + '</span><span class="m">' + (m ? fmtLen(m) : "0") + "</span>" +
-          '<span class="fillbar"><i style="width:' + Math.min(100, p) + '%"></i></span>' +
-          (p >= 80 ? '<span class="full-tag">заполнено</span>' : "") + "</button>";
-      }).join("");
-      html += '<div class="rack-block ' + z.type + '" style="left:' + b.x + 'px;top:' + b.y + 'px;width:' + b.w + 'px;height:' + b.h + 'px">' +
-        '<div class="rack-head"><b>' + esc(z.name) + '</b><span class="badge ' + (zp > 80 ? "bad" : zp > 40 ? "warn" : "ok") + '">' + zp + "%</span></div>" +
-        '<div class="rack-cells" style="grid-template-columns:repeat(' + cells.length + ',1fr)">' + cellHtml + "</div></div>";
-    });
-    return html;
+    return '<img class="map-scheme" src="scheme.svg" alt="Схема мест хранения ТМЦ и ремонта обсадных труб">';
   }
   function mapSideHtml() {
     var rows = mapRows();
@@ -1322,19 +1291,13 @@
       .map(function (k) { return { k: k, m: occ[k] }; })
       .sort(function (a, b) { return b.m - a.m; });
     var sel = state.map.sel;
-    var detail = sel ? mapDetailHtml(sel.zoneId, sel.cell) : '<div class="hint">Нажмите на ячейку, чтобы увидеть, что внутри</div>';
+    var detail = sel ? mapDetailHtml(sel.zoneId, sel.cell) : '<div class="hint">Точная векторная копия чертежа. Колесо — масштаб, перетаскивание — сдвиг.</div>';
     return '<div class="card"><div class="card-head"><h3>Сводка</h3></div><div class="card-body">' +
       '<div class="stat"><span>Метраж</span><b>' + fmtLen(t.meters) + "</b></div>" +
       '<div class="stat"><span>Вес</span><b>' + fmtTon(t.kg) + "</b></div>" +
       '<div class="stat"><span>Позиций</span><b>' + fmtInt(t.qty) + "</b></div>" +
       '<div class="stat"><span>Средняя длина</span><b>' + (t.qty ? fmt1(avgLength(t)) + " м" : "—") + "</b></div>" +
-      '<div class="stat"><span>Занято ячеек</span><b>' + fmtInt(topCells.length) + "</b></div>" +
-      '<div id="mapDetail">' + detail + "</div></div></div>" +
-      '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Самые заполненные</h3></div><div class="card-body">' +
-      (topCells.slice(0, 6).map(function (x) {
-        var p = x.k.split("|"), z = zoneById(p[0]);
-        return '<div class="stat"><span>' + esc((z ? z.name : "?") + " · " + p[1]) + "</span><b>" + fmtLen(x.m) + "</b></div>";
-      }).join("") || '<div class="muted">Пусто</div>') + "</div></div>";
+      '<div id="mapDetail">' + detail + "</div></div></div>";
   }
 
   /* ================= схема склада ================= */
@@ -1362,13 +1325,7 @@
       '<button type="button" data-mapzoom="out" title="Отдалить">−</button>' +
       '<button type="button" data-mapzoom="reset" title="Сброс">⟲</button></div>' +
       '<div class="map-hint">Колесо — масштаб · перетаскивание — сдвиг</div></div>' +
-      '<div class="map-legend">' +
-      '<span><i style="background:#f8fafd;border-color:#dfe7f2"></i>пусто</span>' +
-      '<span><i style="background:#dcfce7;border-color:#a7e3bd"></i>до 40%</span>' +
-      '<span><i style="background:#fef3c7;border-color:#f5cf7c"></i>40–80%</span>' +
-      '<span><i style="background:#ffe4e6;border-color:#f9b4c0"></i>заполнено</span>' +
-      '<span><i style="background:#f3e8ff;border-color:#d8b4fe"></i>ПВХ</span>' +
-      '<span><i style="background:#dbeafe;border-color:#bfdbfe"></i>цех</span></div></div>' +
+      "</div>" +
       '<div class="map-side" id="mapSide">' + mapSideHtml() + "</div></div>";
   }
 
