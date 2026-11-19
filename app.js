@@ -270,8 +270,8 @@
   }
   function unitLabel(u) { return u ? u.code + " (" + u.name + ")" : "—"; }
   function sizeLabel(id) { var s = sizeById(id); return s ? s.label : id; }
-  function statusLabel(s) { return s === "prepared" ? "Подготовленная" : "Не подготовленная"; }
-  function statusBadge(s) { return s === "prepared" ? '<span class="badge ok">Готова</span>' : '<span class="badge warn">Не готова</span>'; }
+  function statusLabel(s) { return s === "prepared" ? "Подготовленная" : s === "defect" ? "Брак" : "Не подготовленная"; }
+  function statusBadge(s) { return s === "prepared" ? '<span class="badge ok">Готова</span>' : s === "defect" ? '<span class="badge bad">Брак</span>' : '<span class="badge warn">Не готова</span>'; }
 
   var toastTimer = null;
   function toast(msg, kind) {
@@ -392,7 +392,7 @@
   function opSigns(op) {
     var out = [];
     var srcStatus = op.type === "from_shop" ? "prepared" : op.status;
-    var dstStatus = op.type === "to_shop" ? "prepared" : (op.type === "from_shop" ? "prepared" : op.status);
+    var dstStatus = op.type === "to_shop" ? "prepared" : (op.type === "from_shop" ? "prepared" : (op.type === "to_defect" ? "defect" : op.status));
     (op.from || []).forEach(function (c) {
       out.push({ zoneId: c.zoneId, cell: c.cell, sizeId: op.sizeId, status: srcStatus, meters: -op.meters, qty: -op.qty });
     });
@@ -417,7 +417,7 @@
         add(op.orgUnitId + "|" + c.zoneId + "|" + c.cell + "|" + op.sizeId + "|" + (op.type === "from_shop" ? "prepared" : op.status) + "|" + (op.nomen || ""), -srcShare, -srcQty);
       });
       (op.to || []).forEach(function (c) {
-        add(op.orgUnitId + "|" + c.zoneId + "|" + c.cell + "|" + op.sizeId + "|" + (op.type === "to_shop" ? "prepared" : op.status) + "|" + (op.nomen || ""), dstShare, dstQty);
+        add(op.orgUnitId + "|" + c.zoneId + "|" + c.cell + "|" + op.sizeId + "|" + (op.type === "to_shop" ? "prepared" : op.type === "to_defect" ? "defect" : op.status) + "|" + (op.nomen || ""), dstShare, dstQty);
       });
     });
     return map;
@@ -479,10 +479,10 @@
     }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.created < b.created ? 1 : -1); });
   }
   function typeLabel(t) {
-    return { in: "Приход", move: "Перемещение", to_shop: "В цех", from_shop: "Из цеха", ship: "Отгрузка", writeoff: "Списание" }[t] || t;
+    return { in: "Приход", move: "Перемещение", to_shop: "В цех", from_shop: "Из цеха", ship: "Отгрузка", writeoff: "Списание", to_defect: "В брак" }[t] || t;
   }
   function typeBadge(t) {
-    var m = { in: "ok", move: "info", to_shop: "warn", from_shop: "info", ship: "bad", writeoff: "muted" };
+    var m = { in: "ok", move: "info", to_shop: "warn", from_shop: "info", ship: "bad", writeoff: "muted", to_defect: "bad" };
     return '<span class="badge ' + (m[t] || "muted") + '">' + typeLabel(t) + "</span>";
   }
   function addrText(cells) {
@@ -756,7 +756,8 @@
     var rows = stockList();
     var all = totals(rows);
     var prep = totals(rows.filter(function (r) { return r.status === "prepared"; }));
-    var raw = totals(rows.filter(function (r) { return r.status !== "prepared"; }));
+    var raw = totals(rows.filter(function (r) { return r.status === "raw"; }));
+    var defect = totals(rows.filter(function (r) { return r.status === "defect"; }));
     var cap = capacityTotal(), occ = occupiedTotal();
     var byUnit = store.orgUnits.map(function (u) {
       return { u: u, t: totals(rows.filter(function (r) { return r.orgUnitId === u.id; })) };
@@ -770,7 +771,7 @@
         "<b>" + fmtLen(x.t.meters) + " · " + fmtTon(x.t.kg) + "</b></div>";
     }).join("");
 
-    var totalM = prep.meters + raw.meters;
+    var totalM = prep.meters + raw.meters + defect.meters;
     var prepPct = pct(prep.meters, totalM);
     var R = 52, C = 2 * Math.PI * R;
     var dash = (C * (totalM ? prep.meters / totalM : 0)).toFixed(1) + " " + C.toFixed(1);
@@ -781,6 +782,7 @@
       '<text x="60" y="74" text-anchor="middle" font-size="8.5" fill="#64748b">подготовлено</text></svg>' +
       '<div class="donut-legend"><div><i style="background:#16a34a"></i>Подготовленная — <b>' + fmtLen(prep.meters) + "</b></div>" +
       '<div><i style="background:#f59e0b"></i>Не подготовленная — <b>' + fmtLen(raw.meters) + "</b></div>" +
+      '<div><i style="background:#e11d48"></i>Брак — <b>' + fmtLen(defect.meters) + "</b></div>" +
       '<div><i style="background:#e2e8f2"></i>Всего — <b>' + fmtLen(totalM) + "</b></div></div></div>";
 
     var recent = store.ops.slice().sort(function (a, b) {
@@ -828,10 +830,10 @@
     }).join("");
   }
   function statusOptions(sel) {
-    return '<option value="">Все статусы</option><option value="raw"' + (sel === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (sel === "prepared" ? " selected" : "") + ">Подготовленная</option>";
+    return '<option value="">Все статусы</option><option value="raw"' + (sel === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (sel === "prepared" ? " selected" : "") + ">Подготовленная</option><option value=\"defect\"" + (sel === "defect" ? " selected" : "") + ">Брак</option>";
   }
   function typeOptions(sel) {
-    return '<option value="">Все операции</option>' + ["in", "move", "to_shop", "from_shop", "ship", "writeoff"].map(function (t) {
+    return '<option value="">Все операции</option>' + ["in", "move", "to_shop", "from_shop", "ship", "writeoff", "to_defect"].map(function (t) {
       return '<option value="' + t + '"' + (t === sel ? " selected" : "") + ">" + typeLabel(t) + "</option>";
     }).join("");
   }
@@ -1026,8 +1028,8 @@
       '<div><span>' + (isPipe(s) ? "Труб" : "Штук") + '</span><b>' + fmtInt(d.qty) + "</b></div></div>";
   }
   function statusBlock(d) {
-    if (d.type === "move" || d.type === "writeoff") {
-      return '<label class="field"><span>Состояние трубы</span><select id="opStatus"><option value="raw"' + (d.status === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (d.status === "prepared" ? " selected" : "") + ">Подготовленная</option></select></label>";
+    if (d.type === "move" || d.type === "writeoff" || d.type === "to_defect") {
+      return '<label class="field"><span>Состояние трубы</span><select id="opStatus"><option value="raw"' + (d.status === "raw" ? " selected" : "") + ">Не подготовленная</option><option value=\"prepared\"" + (d.status === "prepared" ? " selected" : "") + ">Подготовленная</option><option value=\"defect\"" + (d.status === "defect" ? " selected" : "") + ">Брак</option></select></label>";
     }
     var txt = d.type === "in" ? "Приход принимается как не подготовленная труба" :
       d.type === "to_shop" ? "В цех уходит не подготовленная, выходит подготовленная" :
@@ -1048,7 +1050,7 @@
   function renderOpModal() {
     var d = state.opDraft;
     var title = d.id ? "Изменить операцию" : "Новая операция";
-    var types = [["in", "Приход"], ["move", "Перемещение"], ["to_shop", "В цех"], ["from_shop", "Из цеха"], ["ship", "Отгрузка"], ["writeoff", "Списание"]];
+    var types = [["in", "Приход"], ["move", "Перемещение"], ["to_shop", "В цех"], ["from_shop", "Из цеха"], ["ship", "Отгрузка"], ["writeoff", "Списание"], ["to_defect", "В брак"]];
     var seg = '<div class="seg" style="width:100%">' + types.map(function (t) {
       return '<button type="button" data-optype="' + t[0] + '" class="' + (d.type === t[0] ? "on" : "") + '">' + t[1] + "</button>";
     }).join("") + "</div>";
@@ -1125,7 +1127,7 @@
     }
     if (!(d.qty > 0)) return toast("Укажите количество", "err");
     if (d.type !== "in" && !d.fromCells.length) return toast("Выберите ячейки, откуда уходит позиция", "err");
-    if ((d.type === "move" || d.type === "to_shop" || d.type === "from_shop") && !d.toCells.length) return toast("Выберите ячейки, куда приходит позиция", "err");
+    if ((d.type === "move" || d.type === "to_shop" || d.type === "from_shop" || d.type === "to_defect") && !d.toCells.length) return toast("Выберите ячейки, куда приходит позиция", "err");
     if (d.type === "in" && !d.toCells.length) return toast("Выберите ячейки для размещения", "err");
 
     var srcStatus = d.type === "from_shop" ? "prepared" : d.status;
@@ -1427,7 +1429,7 @@
   }
   function viewReports() {
     var ops = opsInPeriod();
-    var t = { in: { c: 0, m: 0, kg: 0 }, ship: { c: 0, m: 0, kg: 0 }, move: { c: 0, m: 0, kg: 0 }, to_shop: { c: 0, m: 0, kg: 0 }, from_shop: { c: 0, m: 0, kg: 0 }, writeoff: { c: 0, m: 0, kg: 0 } };
+    var t = { in: { c: 0, m: 0, kg: 0 }, ship: { c: 0, m: 0, kg: 0 }, move: { c: 0, m: 0, kg: 0 }, to_shop: { c: 0, m: 0, kg: 0 }, from_shop: { c: 0, m: 0, kg: 0 }, writeoff: { c: 0, m: 0, kg: 0 }, to_defect: { c: 0, m: 0, kg: 0 } };
     ops.forEach(function (o) {
       var s = sizeById(o.sizeId), b = t[o.type];
       if (!b) return;
@@ -1457,7 +1459,7 @@
     ops.forEach(function (o) { users[o.user] = (users[o.user] || 0) + 1; });
     var userList = Object.keys(users).map(function (k) { return { fio: k, n: users[k] }; }).sort(function (a, b) { return b.n - a.n; });
 
-    var moveTable = ["in", "ship", "to_shop", "from_shop", "move", "writeoff"].map(function (k) {
+    var moveTable = ["in", "ship", "to_shop", "from_shop", "move", "writeoff", "to_defect"].map(function (k) {
       return "<tr><td>" + typeBadge(k) + '</td><td class="num">' + t[k].c + '</td><td class="num">' + fmtLen(t[k].m) + '</td><td class="num">' + fmtTon(t[k].kg) + "</td></tr>";
     }).join("");
 
