@@ -612,13 +612,13 @@
     }
     applyMapTransform();
   }
-  function fitMap() {
+  function fitMap(whole) {
     var stage = el("mapStage");
     if (!stage) return;
     var sw = stage.clientWidth, sh = stage.clientHeight;
     var fitK = Math.min(sw / MAP_W, sh / MAP_H) * 0.96;
-    var k = sw < 620 ? fitK : Math.max(fitK, 0.5);
-    var x = sw < 620 ? (sw - MAP_W * k) / 2 : 0;
+    var k = whole ? fitK : (sw < 620 ? fitK : Math.max(fitK, 0.5));
+    var x = (whole || sw < 620) ? (sw - MAP_W * k) / 2 : 0;
     var y = (sh - MAP_H * k) / 2;
     state.map.view = { k: k, x: x, y: y, initialized: true };
     clampMapView();
@@ -1323,6 +1323,7 @@
       '<div class="map-zoom">' +
       '<button type="button" data-mapzoom="in" title="Приблизить">+</button>' +
       '<button type="button" data-mapzoom="out" title="Отдалить">−</button>' +
+      '<button type="button" data-mapzoom="fit" title="Весь лист">⛶</button>' +
       '<button type="button" data-mapzoom="reset" title="Сброс">⟲</button></div>' +
       '<div class="map-hint">Колесо — масштаб · перетаскивание — сдвиг</div></div>' +
       "</div>" +
@@ -1980,6 +1981,7 @@
         var mode = zoomBtn.getAttribute("data-mapzoom");
         if (mode === "in") zoomMapCenter(1.2);
         else if (mode === "out") zoomMapCenter(1 / 1.2);
+        else if (mode === "fit") fitMap(true);
         else fitMap();
         return;
       }
