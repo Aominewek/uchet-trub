@@ -200,7 +200,7 @@
     return s;
   }
   var store = load();
-  function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+  function persist() { if (tabStale) return; try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 
   var session = null;
   try {
@@ -325,6 +325,58 @@
     });
     if (store.audit.length > 400) store.audit.length = 400;
     persist();
+  }
+  var UNDO_KEY = "utp_undo_v4";
+  function undoStack() { try { return JSON.parse(localStorage.getItem(UNDO_KEY) || "[]"); } catch (e) { return []; } }
+  function undoCount() { return undoStack().length; }
+  function paintUndo() {
+    var b = el("undoBtn");
+    if (!b) return;
+    b.style.display = session && (session.role === "admin" || session.role === "manager") && undoCount() ? "" : "none";
+  }
+  function undoPush(label) {
+    try {
+      var st = undoStack();
+      st.unshift({ ts: new Date().toISOString(), user: session ? session.fio : "Система", label: label, data: JSON.stringify(store) });
+      st = st.slice(0, 5);
+      try { localStorage.setItem(UNDO_KEY, JSON.stringify(st)); }
+      catch (e2) { st = st.slice(0, 1); localStorage.setItem(UNDO_KEY, JSON.stringify(st)); }
+    } catch (e) {}
+  }
+  function undoLast() {
+    var st = undoStack();
+    if (!st.length) return toast("Нечего отменять", "err");
+    var item = st[0];
+    if (!(session && (session.role === "admin" || session.role === "manager" || item.user === session.fio))) {
+      return toast("Отменить может автор операции, руководитель или администратор", "err");
+    }
+    st.shift();
+    try {
+      store = migrate(JSON.parse(item.data));
+      localStorage.setItem(UNDO_KEY, JSON.stringify(st));
+      persist();
+      logAction("Отменено действие", item.label + " · " + item.user);
+      closeModal();
+      toast("Отменено: " + item.label, "ok");
+      refreshCurrent();
+      paintBell();
+      paintUndo();
+    } catch (e) { toast("Не удалось отменить", "err"); }
+  }
+  var tabStale = false;
+  function paintTabLock() {
+    var b = el("tabLock");
+    if (b) b.style.display = tabStale ? "block" : "none";
+  }
+  function writeBlocked() {
+    if (!tabStale) return false;
+    toast("Вкладка устарела: данные изменены в другой вкладке. Нажмите «Обновить».", "err");
+    return true;
+  }
+  function watchTabs() {
+    window.addEventListener("storage", function (e) {
+      if (e.key === KEY && e.newValue) { tabStale = true; paintTabLock(); }
+    });
   }
   function unreadCount() { return store.notifications.filter(function (n) { return !n.read; }).length; }
   function paintBell() {
@@ -484,6 +536,7 @@
     el("shell").classList.add("hidden");
     el("loginScreen").classList.remove("hidden");
     el("loginScreen").style.display = "grid";
+    paintUndo();
   }
   function initials(fio) {
     var p = fio.split(" ");
@@ -500,6 +553,7 @@
     el("sbFootText").textContent = "Локальная база · " + (unitById(session.orgUnitId) ? unitById(session.orgUnitId).code : "") + " · v4";
     paintBell();
     go("dashboard");
+    paintUndo();
   }
 
   /* ================= навигация ================= */
@@ -1043,6 +1097,7 @@
     });
   }
   function saveOperation() {
+    if (writeBlocked()) return;
     syncDraftFromDom();
     var d = state.opDraft;
     if (!d.orgUnitId) return toast("Выберите оргединицу", "err");
@@ -1084,6 +1139,7 @@
       plant: d.plant, note: d.note, user: d.user || session.fio,
       created: d.created || new Date().toISOString()
     };
+    undoPush((d.id ? "Изменение" : "Создание") + " операции: " + typeLabel(d.type) + " · " + sizeLabel(d.sizeId) + " · " + fmtLen(d.meters));
     if (d.id) {
       var i = store.ops.findIndex(function (o) { return o.id === d.id; });
       if (i > -1) store.ops[i] = op;
@@ -1098,6 +1154,7 @@
     closeModal();
     toast(d.id ? "Операция сохранена" : "Операция добавлена", "ok");
     refreshCurrent();
+    paintUndo();
   }
   function askDeleteOp(id) {
     var op = store.ops.filter(function (o) { return o.id === id; })[0];
@@ -1108,8 +1165,10 @@
       '<button class="btn danger" data-action="confirm-del" data-id="' + id + '">Удалить</button></div>', "sm");
   }
   function deleteOp(id) {
+    if (writeBlocked()) return;
     var op = store.ops.filter(function (o) { return o.id === id; })[0];
     if (!op) return;
+    undoPush("Удаление операции: " + typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters));
     store.ops = store.ops.filter(function (o) { return o.id !== id; });
     logAction("Удалена операция", typeLabel(op.type) + " · " + sizeLabel(op.sizeId) + " · " + fmtLen(op.meters));
     notify("Операция удалена", session.fio + ": " + typeLabel(op.type) + ", " + sizeLabel(op.sizeId), "bad");
@@ -1117,6 +1176,7 @@
     closeModal();
     toast("Операция удалена", "ok");
     refreshCurrent();
+    paintUndo();
   }
 
   /* ================= остатки ================= */
@@ -2192,6 +2252,8 @@
   function handleAction(btn) {
     var a = btn.getAttribute("data-action");
     var id = btn.getAttribute("data-id");
+    if (a === "reload-page") return location.reload();
+    if (a === "undo") return undoLast();
     if (a === "new-op") return openOperation();
     if (a === "edit-op") return openOperation(id);
     if (a === "del-op") return askDeleteOp(id);
@@ -2289,6 +2351,7 @@
     ensureSchemeZones();
     fillLogin();
     bindEvents();
+    watchTabs();
     if (session) {
       showApp();
     } else {

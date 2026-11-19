@@ -423,6 +423,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 </style>
 </head>
 <body>
+<div id="tabLock" style="display:none;position:fixed;left:0;right:0;top:0;z-index:9999;background:#fef3c7;border-bottom:1px solid #f5cf7c;color:#92400e;padding:10px 16px;font-size:13px;font-weight:600;text-align:center">Данные изменены в другой вкладке. Эта вкладка только для чтения. <button data-action="reload-page" style="margin-left:10px;border:1px solid #f5cf7c;background:#fff;border-radius:7px;padding:4px 10px;font-weight:700;cursor:pointer">Обновить</button></div>
 
 <section class="login" id="loginScreen">
   <div class="login-brand">
@@ -480,6 +481,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <input id="globalSearch" placeholder="Поиск: труба, ячейка, сотрудник" aria-label="Поиск">
         </div>
+        <button class="icon-btn" id="undoBtn" data-action="undo" title="Отменить последнее действие" style="display:none">↶</button>
         <button class="icon-btn" id="bellBtn" aria-label="Уведомления">
           <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
           <span class="dot-badge" id="bellDot">0</span>
