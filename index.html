@@ -240,6 +240,12 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 .map-stage.dragging{cursor:grabbing}
 .map-canvas{position:absolute;left:0;top:0;width:2976px;height:842px;transform-origin:0 0;background:#fff;will-change:transform}
 .map-scheme{position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;user-select:none}
+.scheme-cell{position:absolute;background:transparent;border:1px dashed rgba(100,116,139,.5);border-radius:2px;padding:0;cursor:pointer;z-index:2;transition:background .18s,border-color .18s}
+.scheme-cell:hover{border-color:#2563eb;background:rgba(37,99,235,.14)}
+.scheme-cell.low{background:rgba(34,197,94,.45);border-color:#16a34a;border-style:solid}
+.scheme-cell.mid{background:rgba(245,158,11,.5);border-color:#d97706;border-style:solid}
+.scheme-cell.high{background:rgba(225,29,72,.45);border-color:#dc2626;border-style:solid}
+.scheme-cell.sel{outline:2px solid #2563eb;outline-offset:0}
 .map-zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:6}
 .map-zoom button{width:34px;height:34px;border-radius:9px;border:1px solid #cfd9e8;background:#fff;font-size:16px;font-weight:700;color:#334155;box-shadow:0 4px 12px rgba(15,31,51,.1);line-height:1}
 .map-zoom button:hover{background:#f6f9ff}
