@@ -1034,6 +1034,16 @@
       "Отгрузка — только подготовленная труба";
     return '<div class="note-line">' + esc(txt) + "</div>";
   }
+  function nomenHistoryHtml() {
+    var seen = {}, list = [];
+    store.ops.forEach(function (o) {
+      var n = (o.nomen || "").trim();
+      if (n && !seen[n]) { seen[n] = 1; list.push(n); }
+    });
+    return '<datalist id="nomenHistory">' + list.slice(0, 80).map(function (n) {
+      return '<option value="' + esc(n) + '"></option>';
+    }).join("") + "</datalist>";
+  }
   function renderOpModal() {
     var d = state.opDraft;
     var title = d.id ? "Изменить операцию" : "Новая операция";
@@ -1061,7 +1071,7 @@
       '<div class="row"><label class="field"><span>Дата</span><input type="date" id="opDate" value="' + esc(d.date) + '"></label>' +
       '<label class="field"><span>Оргединица</span><select id="opUnit">' + unitOptions(d.orgUnitId, "— выберите —") + "</select></label></div>" +
       '<label class="field"><span>Позиция</span><select id="opSize">' + sizeOptions(d.sizeId) + "</select></label>" +
-      '<div class="row"><label class="field"><span>Номенклатурный номер *</span><input type="text" id="opNomenInput" value="' + esc(d.nomen || "") + '" placeholder="Впишите номер трубы"></label>' +
+      '<div class="row"><label class="field"><span>Номенклатурный номер *</span><input type="text" id="opNomenInput" value="' + esc(d.nomen || "") + '" placeholder="Впишите номер трубы" list="nomenHistory">' + nomenHistoryHtml() + "</label>" +
       '<div class="field"><span>Единица учёта</span><div class="hint" id="opUnitInfo">' + (sizeById(d.sizeId) ? (isPipe(sizeById(d.sizeId)) ? "метры" : "штуки") : "—") + "</div></div></div>" +
       '<div class="row3"><label class="field"><span id="opMetersLabel">' + (isPipe(sizeById(d.sizeId)) ? "Метров" : "Метров (необязательно)") + '</span><input type="number" id="opMeters" min="0" step="1" value="' + (d.meters || "") + '"></label>' +
       '<label class="field"><span id="opQtyLabel">' + (isPipe(sizeById(d.sizeId)) ? "Штук" : "Штук (обязательно)") + '</span><input type="number" id="opQty" min="0" step="1" value="' + (d.qty || "") + '"></label>' +
